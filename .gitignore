@@ -1,0 +1,35 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# AI Agent Contexts (임시 로그 및 캐시)
+.claudecode/
+.anthropic/
+.cursor/
+
+# Node.js (만약 스크립트 도구를 쓴다면)
+node_modules/
+npm-debug.log*
+
+# Python (AI 스크립트용)
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+
+# Environment Variables & Secrets
+.env
+.env.local
+*.pem
+*.key
+
+# Project Build Meta-prompt
+.clauderules
+AI_MAINTAINER_GUIDE.md
