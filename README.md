@@ -1,28 +1,167 @@
-# 🚀 AX-Driven Backend Workspace
+# AX-Driven Backend Workspace
 
-단순한 프롬프트 복붙을 넘어, 백엔드 엔지니어링 프로세스 전체의 **AX(AI Transformation)**를 제안하는 워크스페이스입니다.
-AI를 단순한 코드 생성기가 아닌 '20년 차 Principal급 아키텍트'로 세팅하여, 도메인에 종속되지 않는 범용적이고 견고한 시스템을 설계합니다.
+백엔드 개발 프로세스에 AI를 체계적으로 통합하기 위한 프롬프트·템플릿·자동화 워크스페이스.
+이 레포지토리를 포크하여 프로젝트 내부에 `ax-driven/` 디렉토리로 배치하면, 커밋·리뷰·이슈 생성 등의 워크플로우를 CLI 파이프라인으로 자동화할 수 있다.
 
-## 💡 Philosophy: 20년 차 아키텍트의 설계 원칙
-* **변동성의 격리 (Isolating Volatility):** 비즈니스 규칙은 끊임없이 변합니다. 핵심 도메인 로직을 보호하기 위해, 잦은 변경이 예상되는 비즈니스 룰(권한, 분기 처리, 상태 전이 조건 등)을 코어 시스템과 철저히 디커플링(Decoupling)합니다.
-* **실패를 전제한 설계 (Design for Failure):** 모든 외부 의존성(API, DB, Message Queue)은 반드시 실패한다는 가정하에, 장애 격리(Bulkhead)와 우아한 성능 저하(Graceful Degradation)를 시스템의 기본 값으로 삼습니다.
-* **진화 가능한 아키텍처 (Evolutionary Architecture):** 처음부터 완벽한 설계는 없습니다. 컴포넌트 간의 결합도를 낮추어, 미래의 요구사항 변화나 기술 스택 교체에 유연하게 대응할 수 있는 구조를 지향합니다.
+## 이런 사람을 위한 프로젝트
 
-## 🛠️ Quick Start (IDE 환경별 세팅)
+- 터미널 중심으로 개발하는 백엔드 엔지니어
+- AI를 코드 생성기가 아닌 **아키텍처 리뷰어·QA·PM 보조 도구**로 활용하고 싶은 사람
+- 팀 컨벤션에 맞게 프롬프트를 커스터마이즈하고, 프로젝트별로 관리하고 싶은 사람
 
-AI에게 본 레포지토리의 핵심 철학을 주입하는 방법입니다.
+## 필요 도구
 
-### 1. IntelliJ (JetBrains AI / GitHub Copilot)
-* 프로젝트 최상위 경로에 `AI_INSTRUCTIONS.md` 파일을 생성하고 `prompts/01-system-instructions.md` 내용을 붙여넣습니다.
-* AI 챗창에서 `@workspace` 또는 `#file:AI_INSTRUCTIONS.md`를 멘션하여 대화를 시작하세요.
+| 도구 | 필수/선택 | 용도 |
+|------|----------|------|
+| Git | 필수 | 버전 관리, diff 추출 |
+| Claude Code | 필수 | AI 파이프라인 실행 (`claude --print`) |
+| GitHub CLI (`gh`) | 선택 | 이슈·마일스톤 생성 (GitHub 전용) |
 
-### 2. VS Code (Continue.dev / Copilot)
-* `.github/copilot-instructions.md` 파일에 `prompts/01-system-instructions.md` 내용을 복사하여 저장합니다.
-* 혹은 Continue 플러그인의 `config.json` 내 `systemMessage`에 해당 내용을 등록하세요.
+### 플랫폼 호환성
 
-### 3. Cursor
-* 프로젝트 최상위 경로에 `.cursorrules` 파일을 생성하고 `prompts/01-system-instructions.md` 내용을 붙여넣습니다.
+| 기능 | GitHub | GitLab | Bitbucket |
+|------|--------|--------|-----------|
+| 커밋 메시지 생성 | O | O | O |
+| PR 아키텍처 리뷰 | O | O | O |
+| 이슈 일괄 생성 | O (`gh`) | CLI 교체 필요 | CLI 교체 필요 |
+| Git Hooks | O | O | O |
+| CI/CD 워크플로우 | O (Actions) | 템플릿 교체 필요 | 템플릿 교체 필요 |
 
-## 📂 Directory Structure
-* `/prompts`: 상황별/목적별 AI 통제 프롬프트 (System, Test, Review 등)
-* `/templates`: AI가 출력해야 할 마크다운 문서 포맷 (Design Doc, Postmortem 등)
+> Git과 Claude Code만 있으면 핵심 기능(커밋, 리뷰)은 어떤 플랫폼에서든 동작한다.
+> **Windows는 WSL(Windows Subsystem for Linux) 환경에서만 동작한다.** WSL 내부에서 프로젝트를 clone하여 작업할 것.
+
+## 제공 기능
+
+이 워크스페이스는 세 가지 방식으로 AI를 개발 워크플로우에 통합한다.
+
+### CLI 파이프라인 (`scripts/`)
+
+프롬프트와 diff를 파이프(`|`)로 연결하여 AI를 호출하는 방식.
+
+- **목적:** 커밋 메시지 생성, PR 리뷰, 이슈 생성 등을 AI에게 위임
+- **특징:** 필요한 입력만 전달하므로 토큰 소모가 적고, 매번 독립 실행되어 컨텍스트가 누적되지 않음
+- **적합한 작업:** 반복적이고 패턴이 명확한 작업 (커밋, 리뷰, 이슈 생성)
+- **원칙:** 생성은 자동, 실행은 사람이 확인 후 진행
+
+### Git Hooks (`hooks/git/`)
+
+git 이벤트(커밋, 푸시 등)에 자동으로 반응하는 스크립트.
+
+- **목적:** 사람이 작성한 커밋 메시지의 포맷 검증, 이슈번호 자동 삽입 등 보조
+- **특징:** AI를 호출하지 않으므로 토큰 소모 없음, git만 있으면 동작
+- **적합한 작업:** 컨벤션 강제, 실수 방지 등 규칙 기반 검증
+- **원칙:** 생성이 아닌 검증·보조 역할
+
+### Claude Code Hooks (`hooks/claude/`)
+
+Claude Code 내부 이벤트(도구 호출 전/후 등)에 반응하는 설정.
+
+- **목적:** Claude Code로 작업할 때 팀 규칙을 자동으로 적용
+- **특징:** Claude Code를 통해 작업할 때만 동작, 일반 터미널 명령어에서는 무관
+- **적합한 작업:** Claude Code 사용 시 린트 자동 실행, 커밋 규칙 강제 등
+
+### 언제 뭘 쓰는가
+
+| 상황 | 추천 방식 | 이유 |
+|------|----------|------|
+| 커밋 메시지를 AI가 만들어주길 원할 때 | CLI 파이프라인 | 사람이 확인 후 커밋, 토큰 절약 |
+| 내가 쓴 커밋 메시지가 컨벤션에 맞는지 체크 | Git Hooks | AI 호출 없이 즉시 검증 |
+| Claude Code로 작업 중 자동으로 규칙 적용 | Claude Code Hooks | Claude Code 세션 내에서만 동작 |
+| 복잡한 설계 논의, 디버깅 | Claude Code 대화 | 맥락이 필요한 작업은 대화가 적합 |
+
+## 디렉토리 구조
+
+```
+ax-driven/
+├── prompts/              AI에게 전달하는 역할·규칙 프롬프트
+├── templates/            AI 출력물의 마크다운 포맷 정의
+├── guides/               CLI 파이프라인 등 실무 활용 가이드
+├── hooks/
+│   ├── git/              Git Hooks 스크립트 (커밋 메시지 포맷 검증·보조)
+│   └── claude/           Claude Code Hooks 설정
+├── scripts/
+│   └── claude/           Claude CLI 기반 단축 명령어 스크립트 (커밋 메시지 생성, PR 리뷰 등)
+└── workflows/            GitHub Actions 워크플로우 템플릿
+```
+
+| 디렉토리 | 파이프라인 참조 | 삭제 시 영향 |
+|----------|----------------|-------------|
+| `prompts/` | **직접 참조** | 파이프라인 동작 안 함 |
+| `templates/` | **직접 참조** | 해당 템플릿 시나리오 동작 안 함 |
+| `guides/` | 참조 안 함 | 영향 없음 |
+| `hooks/git/` | 참조 안 함 | 커밋 메시지 검증만 해제 |
+| `hooks/claude/` | 참조 안 함 | Claude Hook 자동화만 해제 |
+| `scripts/claude/` | 참조 안 함 | alias만 사용 불가, 수동 명령어는 동작 |
+| `workflows/` | 참조 안 함 | CI/CD 자동화만 해제 |
+
+> 의존 방향은 항상 단방향. 사용하지 않는 AI 도구의 디렉토리는 삭제해도 다른 기능에 영향 없음.
+
+## Quick Start
+
+### 1. 프로젝트에 배치
+
+```bash
+# git subtree로 프로젝트에 추가 (git 충돌 없음, 팀원 추가 작업 없음)
+cd my-project
+git subtree add --prefix=ax-driven https://github.com/{your-org}/ax-driven-backend.git main --squash
+
+# 업스트림 업데이트 받기 (포크 원본에 변경이 있을 때)
+git subtree pull --prefix=ax-driven https://github.com/{your-org}/ax-driven-backend.git main --squash
+```
+
+> **왜 subtree인가?** `git clone`하면 레포 안에 레포가 되어 git이 꼬인다.
+> subtree는 하나의 레포로 합쳐지므로, 팀원은 그냥 `git clone`하면 `ax-driven/`이 포함되어 있다.
+
+### 2. CLI 파이프라인 사용
+
+프로젝트 루트에서 실행한다. 모든 경로는 상대경로 기준.
+
+```bash
+# 커밋 메시지 자동 생성
+git diff --cached | cat ax-driven/prompts/00-git-commit-guide.md - | claude --print
+
+# PR 아키텍처 리뷰
+git diff main...HEAD | cat ax-driven/prompts/03-pr-reviewer.md - | claude --print
+```
+
+> 시나리오별 상세 사용법, 임시 파일 패턴, 단축 명령어 안내는 [CLI 파이프라인 가이드](guides/01-cli-pipeline.md) 참조.
+
+### 3. IDE 연동 (선택사항)
+
+터미널 외에 IDE에서도 프롬프트를 활용할 수 있다.
+
+| IDE | 방법 |
+|-----|------|
+| IntelliJ | `AI_INSTRUCTIONS.md`에 `prompts/01-system-instructions.md` 복사 |
+| VS Code | `.github/copilot-instructions.md`에 복사 또는 Continue 플러그인 `systemMessage` 등록 |
+| Cursor | `.cursorrules`에 복사 |
+
+## 팀에서 사용하기
+
+1. 이 레포를 **포크**한다
+2. `prompts/`, `templates/`를 팀 컨벤션에 맞게 수정한다
+3. 각 프로젝트에 `git subtree add`로 배치한다
+4. 같은 팀은 같은 포크를 사용하여 컨벤션을 통일한다
+
+```bash
+# 팀 A: A팀 포크를 프로젝트에 추가
+cd project-x
+git subtree add --prefix=ax-driven https://github.com/team-a/ax-driven-backend.git main --squash
+
+# 팀 B: B팀 포크를 프로젝트에 추가
+cd project-y
+git subtree add --prefix=ax-driven https://github.com/team-b/ax-driven-backend.git main --squash
+```
+
+> 명령어(`ai-commit` 등)는 동일하지만, 프롬프트 내용은 프로젝트마다 다를 수 있다.
+
+## 상세 가이드
+
+| 가이드 | 내용 | 상태 |
+|--------|------|------|
+| [CLI 파이프라인](guides/01-cli-pipeline.md) | 시나리오별 사용법, 임시 파일 패턴, 단축 명령어 | 작성 완료 |
+| Git Hooks | 커밋 메시지 포맷 검증·보조 (컨벤션 체크, 이슈번호 자동 삽입 등) | 예정 |
+| Claude Code Hooks | Claude Code 사용 시 팀 규칙 자동 적용 설정 | 예정 |
+| 프롬프트 체이닝 스크립트 | ai-commit, ai-review, ai-issue 단축 명령어 (AI 생성 → 사람 확인 → 실행) | 예정 |
+| GitHub Actions | PR 자동 리뷰, 이슈 라벨링 워크플로우 | 예정 |
+| 프롬프트 품질 검증 CI | 필수 섹션 존재 여부, 포맷 일관성 린트 | 예정 |
