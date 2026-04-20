@@ -1,0 +1,59 @@
+#!/bin/sh
+# pre-push hook — push 전 원격 브랜치 상태 최신화 및 diverge 감지
+#
+# 방지하는 시나리오:
+#   로컬이 최신이라 착각하고 push → 원격의 다른 사람 커밋을 덮어씀
+#
+# 동작:
+#   1. git remote update --prune (원격 상태 최신화, 삭제된 브랜치 정리)
+#   2. 원격 브랜치에 로컬에 없는 커밋이 있으면 push 중단
+#   3. main/master 직접 push 방지
+
+REMOTE="$1"
+CURRENT_BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null)
+
+if [ -z "$CURRENT_BRANCH" ]; then
+  exit 0
+fi
+
+# --- main/master 직접 push 방지 ---
+case "$CURRENT_BRANCH" in
+  main|master)
+    echo ""
+    echo "[ERROR] ${CURRENT_BRANCH} 브랜치에 직접 push할 수 없습니다."
+    echo "  feature 브랜치에서 작업 후 PR을 생성해주세요."
+    echo ""
+    exit 1
+    ;;
+esac
+
+# --- 원격 상태 최신화 ---
+echo "[pre-push] 원격 브랜치 정보 동기화 중..."
+git remote update --prune 2>/dev/null
+
+# --- diverge 감지 ---
+REMOTE_REF="${REMOTE}/${CURRENT_BRANCH}"
+
+# 원격에 해당 브랜치가 없으면 (새 브랜치 push) 통과
+if ! git rev-parse --verify "$REMOTE_REF" >/dev/null 2>&1; then
+  exit 0
+fi
+
+# 원격에만 있는 커밋 수
+BEHIND=$(git rev-list --count HEAD.."$REMOTE_REF" 2>/dev/null)
+
+if [ "$BEHIND" -gt 0 ]; then
+  echo ""
+  echo "[ERROR] 원격 브랜치에 로컬에 없는 커밋이 ${BEHIND}개 있습니다."
+  echo ""
+  echo "  원격: ${REMOTE_REF}"
+  echo "  로컬에 없는 커밋:"
+  git log --oneline HEAD.."$REMOTE_REF" | sed 's/^/    /'
+  echo ""
+  echo "  먼저 pull 받은 후 다시 push 해주세요:"
+  echo "    git pull --rebase ${REMOTE} ${CURRENT_BRANCH}"
+  echo ""
+  exit 1
+fi
+
+exit 0

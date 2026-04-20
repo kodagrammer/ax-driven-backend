@@ -55,10 +55,24 @@
 
 git 이벤트(커밋, 푸시 등)에 자동으로 반응하는 스크립트.
 
-- **목적:** 사람이 작성한 커밋 메시지의 포맷 검증, 이슈번호 자동 삽입 등 보조
+- **목적:** 수동 커밋 시 컨벤션 검증, 민감 파일 커밋 방지, push 전 원격 상태 확인
 - **특징:** AI를 호출하지 않으므로 토큰 소모 없음, git만 있으면 동작
 - **적합한 작업:** 컨벤션 강제, 실수 방지 등 규칙 기반 검증
 - **원칙:** 생성이 아닌 검증·보조 역할
+
+| Hook | 실행 시점 | 검증 항목 |
+|------|----------|----------|
+| `pre-commit` | 커밋 직전 | 민감 파일(.env, *.pem 등), 충돌 마커 잔류, 대용량 파일(5MB), 디버그 코드(warning) |
+| `commit-msg` | 메시지 작성 후 | Conventional Commits 포맷, type 허용값, subject 50자, body 72자(warning) |
+| `pre-push` | push 직전 | 원격 브랜치 최신화(`remote update --prune`), diverge 감지, main/master 직접 push 차단 |
+
+```bash
+# 설치
+sh hooks/git/install.sh
+
+# 해제
+sh hooks/git/uninstall.sh
+```
 
 <br/>
 
@@ -180,7 +194,7 @@ git subtree add --prefix=ax-driven https://github.com/team-b/ax-driven-backend.g
 | 가이드 | 내용 | 상태 |
 |--------|------|------|
 | [CLI 파이프라인](guides/01-cli-pipeline.md) | 시나리오별 사용법, 임시 파일 패턴, 단축 명령어 | 작성 완료 |
-| Git Hooks | 커밋 메시지 포맷 검증·보조 (컨벤션 체크, 이슈번호 자동 삽입 등) | 예정 |
+| [Git Hooks](guides/02-git-hooks.md) | 커밋 메시지 포맷 검증, 민감 파일·충돌 마커 방지, push 전 원격 동기화 | 작성 완료 |
 | Claude Code Hooks | Claude Code 사용 시 팀 규칙 자동 적용 설정 | 예정 |
 | 프롬프트 체이닝 스크립트 | ai-commit, ai-review, ai-issue 단축 명령어 (AI 생성 → 사람 확인 → 실행) | 예정 |
 | GitHub Actions | PR 자동 리뷰, 이슈 라벨링 워크플로우 | 예정 |

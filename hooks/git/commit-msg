@@ -1,0 +1,74 @@
+#!/bin/sh
+# commit-msg hook — 수동 커밋 메시지의 Conventional Commits 포맷 검증
+# 참조: prompts/00-git-commit-guide.md
+
+COMMIT_MSG_FILE="$1"
+MSG=$(cat "$COMMIT_MSG_FILE")
+
+# 첫 번째 줄 (subject line)
+SUBJECT=$(echo "$MSG" | head -n 1)
+
+# 허용 type 목록
+TYPES="feat|fix|docs|style|refactor|test|chore|hotfix"
+
+# --- Error: subject 형식 검증 ---
+# 패턴: <type>(<scope>): <subject> (#N) 또는 (no-issue)
+if ! echo "$SUBJECT" | grep -qE "^(${TYPES})\(.+\): .+ \(#[0-9]+\)$" && \
+   ! echo "$SUBJECT" | grep -qE "^(${TYPES})\(.+\): .+ \(no-issue\)$"; then
+  echo ""
+  echo "[ERROR] 커밋 메시지 형식이 올바르지 않습니다."
+  echo ""
+  echo "  올바른 형식:"
+  echo "    <type>(<scope>): <subject> (#이슈번호)"
+  echo "    <type>(<scope>): <subject> (no-issue)"
+  echo ""
+  echo "  허용 type: ${TYPES}"
+  echo ""
+  echo "  예시:"
+  echo "    feat(auth): add JWT refresh token logic (#12)"
+  echo "    fix(api): handle null response from external service (no-issue)"
+  echo ""
+  exit 1
+fi
+
+# --- Error: subject 길이 검증 (50자 이내) ---
+# type(scope): 와 (#N)/(no-issue)를 제외한 순수 subject 부분 추출
+PURE_SUBJECT=$(echo "$SUBJECT" | sed -E 's/^[a-z]+\([^)]+\): //' | sed -E 's/ \(#[0-9]+\)$//' | sed -E 's/ \(no-issue\)$//')
+SUBJECT_LEN=$(printf '%s' "$PURE_SUBJECT" | wc -m | tr -d ' ')
+
+if [ "$SUBJECT_LEN" -gt 50 ]; then
+  echo ""
+  echo "[ERROR] subject가 50자를 초과했습니다. (현재: ${SUBJECT_LEN}자)"
+  echo "  subject: ${PURE_SUBJECT}"
+  echo ""
+  exit 1
+fi
+
+# --- Warning: body 줄 길이 검증 (72자 초과 시 경고) ---
+LINE_NUM=0
+HAS_WARNING=0
+# 마지막 줄에 개행이 없어도 처리되도록 보완
+while IFS= read -r LINE || [ -n "$LINE" ]; do
+  LINE_NUM=$((LINE_NUM + 1))
+  # subject(1줄)과 빈 줄(2줄)은 건너뜀 — body는 3줄째부터
+  if [ "$LINE_NUM" -le 2 ]; then
+    continue
+  fi
+  LINE_LEN=$(printf '%s' "$LINE" | wc -m | tr -d ' ')
+  if [ "$LINE_LEN" -gt 72 ]; then
+    if [ "$HAS_WARNING" -eq 0 ]; then
+      echo ""
+      echo "[WARNING] body에 72자를 초과하는 줄이 있습니다."
+      HAS_WARNING=1
+    fi
+    echo "  ${LINE_NUM}번째 줄 (${LINE_LEN}자): ${LINE}"
+  fi
+done < "$COMMIT_MSG_FILE"
+
+if [ "$HAS_WARNING" -eq 1 ]; then
+  echo ""
+  echo "  (커밋은 계속 진행됩니다)"
+  echo ""
+fi
+
+exit 0

@@ -18,7 +18,7 @@
 
 ## [Commit Format]
 `<type>(<scope>): <subject> (#이슈번호)` — 연결된 GitHub 이슈가 있는 경우
-`<type>(<scope>): <subject> (이슈미발행)` — 연결된 GitHub 이슈가 없는 경우
+`<type>(<scope>): <subject> (no-issue)` — 연결된 GitHub 이슈가 없는 경우
 (공백 한 줄)
 `<body>`
 (공백 한 줄)
@@ -45,7 +45,7 @@
    - 관련 이슈 번호가 있다면 `Closes #123` 형태로 포함하십시오.
 5. **이슈 번호 규칙**:
    - 연결된 GitHub 이슈가 있는 경우, Subject 끝에 `(#이슈번호)`를 반드시 명시하십시오.
-   - 연결된 GitHub 이슈가 없는 경우, Subject 끝에 `(이슈미발행)`을 명시하십시오.
+   - 연결된 GitHub 이슈가 없는 경우, Subject 끝에 `(no-issue)`을 명시하십시오.
 
 ## [Example Output]
 `feat(ai-prompt): 엣지 케이스 추출을 위한 테스트 자동화 프롬프트 추가 (#42)`
