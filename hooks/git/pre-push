@@ -27,9 +27,19 @@ case "$CURRENT_BRANCH" in
     ;;
 esac
 
-# --- 원격 상태 최신화 ---
+# --- 원격 상태 최신화 (타임아웃 10초) ---
 echo "[pre-push] 원격 브랜치 정보 동기화 중..."
-git remote update --prune 2>/dev/null
+TIMEOUT_CMD=""
+if command -v timeout >/dev/null 2>&1; then
+  TIMEOUT_CMD="timeout 10"
+elif command -v gtimeout >/dev/null 2>&1; then
+  TIMEOUT_CMD="gtimeout 10"
+fi
+
+if ! ${TIMEOUT_CMD} git remote update --prune 2>/dev/null; then
+  echo "[WARNING] 원격 동기화에 실패했습니다. (네트워크 확인 필요)" >&2
+  echo "  기존 로컬 캐시 기준으로 검증을 계속합니다." >&2
+fi
 
 # --- diverge 감지 ---
 REMOTE_REF="${REMOTE}/${CURRENT_BRANCH}"
@@ -41,6 +51,7 @@ fi
 
 # 원격에만 있는 커밋 수
 BEHIND=$(git rev-list --count HEAD.."$REMOTE_REF" 2>/dev/null)
+BEHIND=${BEHIND:-0}
 
 if [ "$BEHIND" -gt 0 ]; then
   echo ""

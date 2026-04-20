@@ -32,7 +32,7 @@
 2. **Subject**: 
    - type(scope): 과 (#이슈번호)/(no-issue)를 제외한 순수 subject 부분이 반드시 50자 이내여야 합니다. 초과하면 거부됩니다.
    - 예: `feat(hooks): add Git Hooks scripts (#6)` → 순수 subject는 "add Git Hooks scripts"(21자) ✅
-   - 예: `feat(hooks): add Git Hooks for commit validation and push protection (#6)` → 순수 subject는 55자 ❌
+   - 예: `feat(hooks): add Git Hooks for commit validation and push protection (#6)` → 순수 subject는 55자 (50자 초과) ❌
    - 50자를 넘길 것 같으면 과감하게 줄이십시오. 상세 내용은 body에 작성하십시오.
    - 명령문(Imperative) 형태를 사용하십시오 (예: "Fix bug" (O), "Fixed bug" (X)).
    - 마침표를 찍지 마십시오.

@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '$TOOL_INPUT' | grep -q 'git commit' && echo '{\"hookSpecificOutput\":{\"additionalContext\":'$(cat \"$CLAUDE_PROJECT_DIR/prompts/00-git-commit-guide.md\" | jq -Rs .)'}}' || exit 0",
+            "command": "input=$(cat); echo \"$input\" | jq -e '.tool_input.command | test(\"^git commit\")' >/dev/null 2>&1 && echo '{\"hookSpecificOutput\":{\"additionalContext\":'$(cat \"$CLAUDE_PROJECT_DIR/prompts/00-git-commit-guide.md\" | jq -Rs .)'}}' || exit 0",
             "timeout": 5000
           }
         ]

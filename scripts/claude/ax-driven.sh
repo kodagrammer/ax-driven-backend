@@ -76,13 +76,18 @@ _ax_run() {
   mkdir -p "$_tmp"
 
   echo "[ax-driven] AI 생성 중..."
-  eval "$_cmd" > "$_file" 2>/dev/null
+  eval "$_cmd" > "$_file" 2>"$_tmp/error.log"
 
   if [ ! -s "$_file" ]; then
-    echo "[ERROR] AI 응답이 비어있습니다. 입력을 확인해주세요." >&2
+    echo "[ERROR] AI 응답이 비어있습니다." >&2
+    if [ -s "$_tmp/error.log" ]; then
+      echo "  에러 로그: $_tmp/error.log" >&2
+      cat "$_tmp/error.log" >&2
+    fi
     rm -f "$_file"
     return 1
   fi
+  rm -f "$_tmp/error.log"
 
   echo "[ax-driven] 생성 완료: $_file"
   echo ""
@@ -135,7 +140,7 @@ ai-commit() {
   echo "  취소하려면 마지막 줄에 quit 을 작성해주세요."
   echo ""
 
-  _ax_run "$_tmp" "commit" "git diff --cached | cat '${_ax_root}/prompts/00-git-commit-guide.md' - | claude --print" || return 1
+  _ax_run "$_tmp" "commit" "git diff --cached | cat '${_ax_root}/prompts/00-git-commit-guide.md' - | claude --print --model sonnet" || return 1
 
   ${EDITOR:-vi} "$_tmp/commit.md"
 
@@ -226,13 +231,18 @@ ai-issue() {
 
   # Step 2: 이슈 명령어 생성
   echo "[ax-driven] AI 생성 중..."
-  cat "${_ax_root}/prompts/04-issue-generator.md" "$_spec" | claude --print > "$_issue" 2>/dev/null
+  cat "${_ax_root}/prompts/04-issue-generator.md" "$_spec" | claude --print > "$_issue" 2>"$_tmp/error.log"
 
   if [ ! -s "$_issue" ]; then
-    echo "[ERROR] AI 응답이 비어있습니다. 명세서를 확인해주세요." >&2
+    echo "[ERROR] AI 응답이 비어있습니다." >&2
+    if [ -s "$_tmp/error.log" ]; then
+      echo "  에러 로그: $_tmp/error.log" >&2
+      cat "$_tmp/error.log" >&2
+    fi
     rm -f "$_issue"
     return 1
   fi
+  rm -f "$_tmp/error.log"
 
   echo "[ax-driven] 생성 완료: $_issue"
   echo ""

@@ -81,14 +81,15 @@ for FILE in $STAGED_FILES; do
     continue
   fi
 
-  MATCHES=$(git show ":$FILE" 2>/dev/null | grep -nE \
+  # 새로 추가된 라인(+)만 검사 — 기존 코드의 디버그 코드는 무시
+  MATCHES=$(git diff --cached -- "$FILE" | grep '^+' | grep -vE '^\+\+\+' | grep -nE \
     'console\.log|debugger;|System\.out\.print|binding\.pry|import pdb|breakpoint\(\)' \
     2>/dev/null || true)
 
   if [ -n "$MATCHES" ]; then
     if [ "$HAS_DEBUG_WARNING" -eq 0 ]; then
       echo ""
-      echo "[WARNING] 디버그 코드가 감지되었습니다."
+      echo "[WARNING] 디버그 코드가 감지되었습니다. (새로 추가된 라인만 검사)"
       HAS_DEBUG_WARNING=1
     fi
     echo "  $FILE:"
