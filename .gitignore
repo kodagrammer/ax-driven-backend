@@ -33,6 +33,3 @@ venv/
 # Project Build Meta-prompt
 .clauderules
 AI_MAINTAINER_GUIDE.md
-
-# Personal Documents
-PORTFOLIO.md
