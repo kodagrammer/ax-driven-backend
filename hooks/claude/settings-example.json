@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx eslint --fix \"$TOOL_INPUT_FILE_PATH\" 2>/dev/null; npx prettier --write \"$TOOL_INPUT_FILE_PATH\" 2>/dev/null; exit 0",
+            "timeout": 30000
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "input=$(cat); echo \"$input\" | jq -e '.tool_input.command | test(\"^git commit\")' >/dev/null 2>&1 && echo '{\"hookSpecificOutput\":{\"additionalContext\":'$(cat \"$CLAUDE_PROJECT_DIR/prompts/00-git-commit-guide.md\" | jq -Rs .)'}}' || exit 0",
+            "timeout": 5000
+          }
+        ]
+      }
+    ]
+  }
+}

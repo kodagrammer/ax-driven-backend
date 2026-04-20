@@ -1,28 +1,23 @@
-# 🛠️ AI Git Commit Message Skill
+# AI Git Commit Message Skill
 
-당신은 대규모 오픈소스 프로젝트의 메인테이너이자 엄격한 백엔드 엔지니어입니다. 제공되는 git diff를 분석하여 구조적이고 명확한 Conventional Commits 메시지를 작성하십시오.
+제공되는 git diff를 분석하여 Conventional Commits 규격의 커밋 메시지를 작성하십시오.
+설명, 해설, 인사말 없이 커밋 메시지만 출력하십시오.
 
-## [Validation Logic]
-커밋 로그를 작성하기 전, 반드시 다음 단계를 수행하십시오.
-
-1. **상태 확인:** `git status`와 `git diff --cached`를 실행하여 스테이징된 파일을 확인하십시오.
-2. **시나리오별 대응:**
-   - **Case 1: 스테이징된 변경 사항이 완결성이 있는 경우**
-     - 스테이징된 diff를 기반으로 Conventional Commits 규격에 맞는 메시지를 작성하십시오.
-   - **Case 2: 논리적 누락이 의심되는 경우**
-     - 예: 특정 Service 로직은 수정되었으나, 관련된 Interface나 DTO의 변경사항이 스테이징되지 않은 경우.
-     - 사용자에게 "현재 [파일명]이 수정되었으나 스테이징되지 않았습니다. 함께 포함할까요?"라고 질문하십시오.
-     - 사용자가 동의하면 `git add` 후 커밋을 진행하십시오.
-   - **Case 3: 스테이징된 파일이 없는 경우**
-     - 사용자에게 "현재 스테이징된 변경 사항이 없습니다. `git add .`를 수행할까요, 아니면 직접 add 하시겠습니까?"라고 질문하십시오.
+## [Output Rules]
+- 문제가 없으면 커밋 메시지만 출력하십시오. 다른 텍스트를 절대 포함하지 마십시오.
+- 논리적 누락이 의심되는 경우에만 "[WARN]"으로 시작하는 경고를 커밋 메시지 앞에 추가하십시오.
+  - 예: 특정 Service 로직은 수정되었으나 관련 Interface나 DTO가 스테이징되지 않은 경우
+- 스테이징된 파일이 없거나 diff가 비어있으면 "[ERROR] 스테이징된 변경 사항이 없습니다."만 출력하십시오.
 
 ## [Commit Format]
-`<type>(<scope>): <subject> (#이슈번호)` — 연결된 GitHub 이슈가 있는 경우
-`<type>(<scope>): <subject> (이슈미발행)` — 연결된 GitHub 이슈가 없는 경우
-(공백 한 줄)
-`<body>`
-(공백 한 줄)
-`<footer>`
+<type>(<scope>): <subject> (#이슈번호)
+
+<body>
+
+<footer>
+
+- 연결된 GitHub 이슈가 없는 경우 이슈번호 대신 (no-issue)를 사용하십시오.
+- 출력에 백틱, 코드블록, 마크다운 서식을 사용하지 마십시오. 순수 텍스트만 출력하십시오.
 
 ## [Rules]
 1. **Type**: 아래 항목 중 가장 적합한 것을 선택하십시오.
@@ -33,8 +28,12 @@
    - `refactor`: 코드 리팩토링
    - `test`: 테스트 코드 추가/수정
    - `chore`: 빌드 업무 수정, 패키지 매니저 설정, 프로젝트 초기화 등
+   - `hotfix`: 긴급 수정
 2. **Subject**: 
-   - 50자 이내로 작성하십시오.
+   - type(scope): 과 (#이슈번호)/(no-issue)를 제외한 순수 subject 부분이 반드시 50자 이내여야 합니다. 초과하면 거부됩니다.
+   - 예: `feat(hooks): add Git Hooks scripts (#6)` → 순수 subject는 "add Git Hooks scripts"(21자) ✅
+   - 예: `feat(hooks): add Git Hooks for commit validation and push protection (#6)` → 순수 subject는 55자 (50자 초과) ❌
+   - 50자를 넘길 것 같으면 과감하게 줄이십시오. 상세 내용은 body에 작성하십시오.
    - 명령문(Imperative) 형태를 사용하십시오 (예: "Fix bug" (O), "Fixed bug" (X)).
    - 마침표를 찍지 마십시오.
 3. **Body**: 
@@ -44,13 +43,17 @@
    - Breaking Change가 있다면 명시하십시오.
    - 관련 이슈 번호가 있다면 `Closes #123` 형태로 포함하십시오.
 5. **이슈 번호 규칙**:
-   - 연결된 GitHub 이슈가 있는 경우, Subject 끝에 `(#이슈번호)`를 반드시 명시하십시오.
-   - 연결된 GitHub 이슈가 없는 경우, Subject 끝에 `(이슈미발행)`을 명시하십시오.
+   - 연결된 GitHub 이슈가 있는 경우, Subject 끝에 (#이슈번호)를 반드시 명시하십시오.
+   - 연결된 GitHub 이슈가 없는 경우, Subject 끝에 (no-issue)를 명시하십시오.
 
-## [Example Output]
-`feat(ai-prompt): 엣지 케이스 추출을 위한 테스트 자동화 프롬프트 추가 (#42)`
+## [Example]
+입력: docs 관련 파일 3개 수정된 diff
 
-`- 백엔드 엔지니어가 놓치기 쉬운 경계값 분석 로직 포함`
-`- 대규모 트래픽 발생 시의 메모리 임계점 테스트 시나리오 강화`
+출력:
+docs(guides): add CLI pipeline guide and restructure project (#5)
 
-`Closes #42`
+- 시나리오별 CLI 파이프라인 사용법 문서화
+- 임시 파일 패턴 및 단축 명령어 구조 안내
+- README 디렉토리 구조 섹션 업데이트
+
+Closes #5

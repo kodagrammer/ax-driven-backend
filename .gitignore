@@ -30,6 +30,9 @@ venv/
 *.pem
 *.key
 
+# ax-driven 임시 파일 (AI 생성 결과물)
+tmp/
+
 # Project Build Meta-prompt
 .clauderules
 AI_MAINTAINER_GUIDE.md
