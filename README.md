@@ -195,7 +195,7 @@ git subtree add --prefix=ax-driven https://github.com/team-b/ax-driven-backend.g
 |--------|------|------|
 | [CLI 파이프라인](guides/01-cli-pipeline.md) | 시나리오별 사용법, 임시 파일 패턴, 단축 명령어 | 작성 완료 |
 | [Git Hooks](guides/02-git-hooks.md) | 커밋 메시지 포맷 검증, 민감 파일·충돌 마커 방지, push 전 원격 동기화 | 작성 완료 |
-| Claude Code Hooks | Claude Code 사용 시 팀 규칙 자동 적용 설정 | 예정 |
+| [Claude Code Hooks](guides/03-claude-code-hooks.md) | 파일 수정 후 린트/포맷 자동 실행, 커밋 시 컨벤션 주입 | 작성 완료 |
 | 프롬프트 체이닝 스크립트 | ai-commit, ai-review, ai-issue 단축 명령어 (AI 생성 → 사람 확인 → 실행) | 예정 |
 | GitHub Actions | PR 자동 리뷰, 이슈 라벨링 워크플로우 | 예정 |
 | 프롬프트 품질 검증 CI | 필수 섹션 존재 여부, 포맷 일관성 린트 | 예정 |
