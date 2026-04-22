@@ -203,6 +203,7 @@ source /Users/kodayoung/Desktop/Projects/github/ax-driven-backend/scripts/claude
 
 | 명령어 | 시나리오 | 동작 |
 |--------|----------|------|
+| `ai-branch` | 원격 및 로컬 브랜치 생성 | 이슈 수집 → 원격 동기화 → from 브랜치 pull → AI 브랜치명 생성 → 확인 → 로컬+원격 브랜치 생성  |
 | `ai-commit` | 커밋 메시지 생성 | diff → AI 생성 → 편집기에서 확인 → 저장하면 커밋, 마지막 줄 `quit`으로 취소 |
 | `ai-review` | PR 리뷰 | diff → AI 리뷰 생성 → 편집기에서 확인 |
 | `ai-review develop` | PR 리뷰 (base 지정) | main 대신 다른 브랜치 기준으로 리뷰 |

@@ -7,6 +7,7 @@
 #
 # 명령어:
 #   ai-commit     커밋 메시지 생성 → 편집기 → 확인 후 커밋
+#   ai-branch     이슈 기반 브랜치 생성 → 확인 → 체크아웃
 #   ai-review     PR 아키텍처 리뷰 생성 → 편집기
 #   ai-issue      작업 명세서 → 이슈 명령어 생성 → 편집기
 #   _ax_done      임시 파일 정리
@@ -164,7 +165,188 @@ ai-commit() {
   fi
 }
 
-# 시나리오 2: PR 아키텍처 리뷰
+# 시나리오 2: 브랜치 생성
+ai-branch() {
+  _ax_root=$(_ax_find) || return 1
+  _tmp="${_ax_root}/tmp"
+  _from="main"
+  _issue=""
+
+  # --- 인자 파싱 ---
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -from)
+        shift
+        _from="$1"
+        ;;
+      -i)
+        shift
+        _issue="$1"
+        ;;
+      *)
+        echo "[Help] ai-branch — 컨벤션에 맞는 브랜치를 생성합니다." >&2
+        echo "" >&2
+        echo "  사용법: ai-branch -i <이슈링크|no-issue:설명> [-from <브랜치>]" >&2
+        echo "" >&2
+        echo "  옵션:" >&2
+        echo "    -i      (필수) GitHub 이슈 URL 또는 no-issue:<작업내용>" >&2
+        echo "    -from   (선택) 분기할 브랜치 (기본: main)" >&2
+        echo "" >&2
+        echo "  예시:" >&2
+        echo "    ai-branch -i https://github.com/owner/repo/issues/3" >&2
+        echo "    ai-branch -i no-issue:add-docs -from develop" >&2
+        return 1
+        ;;
+    esac
+    shift
+  done
+
+  # -i 필수 검증
+  if [ -z "$_issue" ]; then
+    echo "[Help] ai-branch — 컨벤션에 맞는 브랜치를 생성합니다." >&2
+    echo "" >&2
+    echo "  사용법: ai-branch -i <이슈링크|no-issue:설명> [-from <브랜치>]" >&2
+    echo "" >&2
+    echo "  옵션:" >&2
+    echo "    -i      (필수) GitHub 이슈 URL 또는 no-issue:<작업내용>" >&2
+    echo "    -from   (선택) 분기할 브랜치 (기본: main)" >&2
+    echo "" >&2
+    echo "  예시:" >&2
+    echo "    ai-branch -i https://github.com/owner/repo/issues/3" >&2
+    echo "    ai-branch -i no-issue:add-docs -from develop" >&2
+    return 1
+  fi
+
+  # 입력값 100byte 제한
+  _byte_len=$(printf '%s' "$_issue" | wc -c | tr -d ' ')
+  if [ "$_byte_len" -gt 100 ]; then
+    echo "[Error] -i 입력값이 100byte를 초과합니다. (${_byte_len}byte)" >&2
+    return 1
+  fi
+
+  # --- 사전처리: origin 검증 ---
+  if ! git remote get-url origin >/dev/null 2>&1; then
+    echo "[Error-404] origin 정보가 없습니다. 원격 브랜치를 연결해주세요." >&2
+    echo "  git remote add origin <URL>" >&2
+    return 1
+  fi
+
+  echo "[ax-driven] 원격 저장소 동기화 중..."
+  if ! timeout 10 git remote update --prune >/dev/null 2>&1; then
+    echo "[Error-504] 원격 저장소에 연결할 수 없습니다. 네트워크 상태를 확인해주세요." >&2
+    return 1
+  fi
+
+  # from 브랜치 존재 확인 (로컬 또는 원격)
+  if ! git rev-parse --verify "$_from" >/dev/null 2>&1 && \
+     ! git rev-parse --verify "origin/$_from" >/dev/null 2>&1; then
+    echo "[Error] '${_from}' 브랜치가 존재하지 않습니다." >&2
+    return 1
+  fi
+
+  # from 브랜치로 이동 & pull
+  echo "[ax-driven] ${_from} 브랜치 최신화 중..."
+  git checkout "$_from" >/dev/null 2>&1 || {
+    echo "[Error] '${_from}' 브랜치로 전환할 수 없습니다." >&2
+    return 1
+  }
+  if ! git pull origin "$_from" 2>&1 | tail -n 3; then
+    echo "[Error] '${_from}' 병합 중 충돌이 발생했습니다. 충돌 해결 후 재시도해주세요." >&2
+    return 1
+  fi
+
+  # --- 이슈 내용 수집 ---
+  _issue_content=""
+  case "$_issue" in
+    no-issue:*)
+      _desc="${_issue#no-issue:}"
+      _issue_content="[no-issue] 작업 내용: ${_desc}"
+      ;;
+    https://github.com/*/issues/*)
+      # GitHub 이슈 URL에서 owner/repo#number 추출
+      _issue_num=$(echo "$_issue" | grep -oE '[0-9]+$')
+      _issue_repo=$(echo "$_issue" | sed -n 's|.*github\.com/\([^/]*/[^/]*\)/issues/.*|\1|p')
+      echo "[ax-driven] 이슈 #${_issue_num} 조회 중..."
+      _issue_content=$(gh issue view "$_issue_num" --repo "$_issue_repo" --json title,body,labels --jq '"[Issue #\(.number // empty)] \(.title)\nLabels: \(.labels | map(.name) | join(", "))\n\(.body)"' 2>&1)
+      if [ $? -ne 0 ]; then
+        echo "[Error] 이슈 링크가 유효하지 않습니다." >&2
+        echo "  상세: $_issue_content" >&2
+        return 1
+      fi
+      ;;
+    *)
+      # URL도 no-issue: 접두사도 아닌 경우 → 작업 내용으로 간주
+      _issue_content="[no-issue] 작업 내용: ${_issue}"
+      ;;
+  esac
+
+  # 기존 브랜치 목록
+  _branches=$(git branch -a --format='%(refname:short)' 2>/dev/null)
+
+  # --- AI 브랜치명 생성 ---
+  mkdir -p "$_tmp"
+  _file="$_tmp/branch.md"
+
+  echo "[ax-driven] 브랜치명 생성 중..."
+  printf '%s\n\n---\n\n## 이슈 정보\n%s\n\n## 기존 브랜치 목록\n%s\n' \
+    "$(cat "${_ax_root}/prompts/05-branch-name-guide.md")" \
+    "$_issue_content" \
+    "$_branches" \
+    | claude --print --model haiku > "$_file" 2>"$_tmp/error.log"
+
+  if [ ! -s "$_file" ]; then
+    echo "[Error] AI 응답이 비어있습니다." >&2
+    if [ -s "$_tmp/error.log" ]; then
+      cat "$_tmp/error.log" >&2
+    fi
+    rm -f "$_file"
+    return 1
+  fi
+  rm -f "$_tmp/error.log"
+
+  _branch_name=$(head -n 1 "$_file" | tr -d '[:space:]')
+  rm -f "$_file"
+
+  echo ""
+  echo "  생성할 브랜치: $_branch_name"
+  echo "  분기 기준:     $_from"
+  echo ""
+  printf "  진행하시겠습니까? (Y/n/e[편집]): "
+  read -r _confirm
+
+  case "$_confirm" in
+    n|N)
+      echo "[ax-driven] 취소되었습니다."
+      return 0
+      ;;
+    e|E)
+      printf "  브랜치명 입력: "
+      read -r _branch_name
+      if [ -z "$_branch_name" ]; then
+        echo "[ax-driven] 취소되었습니다."
+        return 0
+      fi
+      ;;
+  esac
+
+  # 브랜치 생성 (로컬 + 원격)
+  if ! git switch -c "$_branch_name" 2>&1; then
+    echo "[Error] 브랜치 생성에 실패했습니다." >&2
+    return 1
+  fi
+
+  echo "[ax-driven] 원격 브랜치 생성 중..."
+  if git push -u origin "$_branch_name" 2>&1; then
+    echo ""
+    echo "[ax-driven] 브랜치 생성 완료: $_branch_name (local + origin)"
+  else
+    echo ""
+    echo "[WARN] 로컬 브랜치는 생성되었으나, 원격 push에 실패했습니다." >&2
+    echo "  수동 push: git push -u origin $_branch_name" >&2
+  fi
+}
+
+# 시나리오 3: PR 아키텍처 리뷰
 ai-review() {
   _ax_root=$(_ax_find) || return 1
   _tmp="${_ax_root}/tmp"
@@ -186,7 +368,7 @@ ai-review() {
   ${EDITOR:-vi} "$_tmp/review.md"
 }
 
-# 시나리오 3: 작업 명세서 → 이슈 생성
+# 시나리오 4: 작업 명세서 → 이슈 생성
 ai-issue() {
   _ax_root=$(_ax_find) || return 1
   _tmp="${_ax_root}/tmp"
