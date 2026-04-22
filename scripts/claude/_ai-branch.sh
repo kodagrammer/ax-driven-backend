@@ -140,7 +140,7 @@ ai-branch() {
     "$(cat "${_ax_root}/prompts/05-branch-name-guide.md")" \
     "$_issue_content" \
     "$_branches" \
-    | _ax_claude --model haiku > "$_file" 2>"$_tmp/error.log"
+    | _ax_claude 30 --model haiku > "$_file" 2>"$_tmp/error.log"
   _branch_rc=$?
   unset _AX_TOKEN_FILE
 

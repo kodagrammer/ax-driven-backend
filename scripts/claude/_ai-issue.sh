@@ -48,7 +48,7 @@ ai-issue() {
   echo "[ax-driven] AI 생성 중..."
   _AX_TOKEN_FILE="$_tmp/token.log"
   export _AX_TOKEN_FILE
-  cat "${_ax_root}/prompts/04-issue-generator.md" "$_spec" | _ax_claude --model haiku > "$_issue" 2>"$_tmp/error.log"
+  cat "${_ax_root}/prompts/04-issue-generator.md" "$_spec" | _ax_claude 30 --model haiku > "$_issue" 2>"$_tmp/error.log"
   _issue_rc=$?
   unset _AX_TOKEN_FILE
 
