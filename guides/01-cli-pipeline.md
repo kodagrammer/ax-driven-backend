@@ -104,8 +104,8 @@ git commit -F ax-driven/tmp/commit.md
 # [정리] 커밋 완료 후 임시 파일 삭제
 rm ax-driven/tmp/commit.md
 
-# ⏩️ 단축키 사용
-ai-comit
+# ⏩️ 단축 명령어 사용
+ai-commit
 ```
 
 #### 사람이 확인할 포인트

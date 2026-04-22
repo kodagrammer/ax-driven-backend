@@ -14,6 +14,19 @@
 
 # --- 내부 함수 ---
 
+# timeout 호환 래퍼 (macOS는 coreutils의 gtimeout 사용, 없으면 timeout 없이 실행)
+_ax_timeout() {
+  _secs="$1"
+  shift
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$_secs" "$@"
+  elif command -v gtimeout >/dev/null 2>&1; then
+    gtimeout "$_secs" "$@"
+  else
+    "$@"
+  fi
+}
+
 # PWD에서 상위로 올라가며 ax-driven 디렉토리를 찾는다
 # 탐지 기준: 디렉토리명이 "ax-driven"으로 시작하고 prompts/가 존재
 _ax_find() {
@@ -248,7 +261,7 @@ ai-branch() {
   fi
 
   echo "[ax-driven] 원격 저장소 동기화 중..."
-  if ! timeout 10 git remote update --prune >/dev/null 2>&1; then
+  if ! _ax_timeout 10 git remote update --prune >/dev/null 2>&1; then
     echo "[Error-504] 원격 저장소에 연결할 수 없습니다. 네트워크 상태를 확인해주세요." >&2
     return 1
   fi
@@ -271,7 +284,7 @@ ai-branch() {
       echo "[ax-driven] 이슈 조회 중..."
       _issue_err="$_tmp/gh_error.log"
       mkdir -p "$_tmp"
-      _issue_content=$(timeout 30 gh issue view "$_issue" --json title,body,labels --jq '"[Issue #\(.number // empty)] \(.title)\nLabels: \(.labels | map(.name) | join(", "))\n\(.body)"' 2>"$_issue_err")
+      _issue_content=$(_ax_timeout 30 gh issue view "$_issue" --json title,body,labels --jq '"[Issue #\(.number // empty)] \(.title)\nLabels: \(.labels | map(.name) | join(", "))\n\(.body)"' 2>"$_issue_err")
       _rc=$?
       if [ $_rc -ne 0 ]; then
         echo "[Error] 이슈를 조회할 수 없습니다." >&2
@@ -303,7 +316,7 @@ ai-branch() {
     "$(cat "${_ax_root}/prompts/05-branch-name-guide.md")" \
     "$_issue_content" \
     "$_branches" \
-    | timeout 30 claude --print --model haiku > "$_file" 2>"$_tmp/error.log"
+    | _ax_timeout 30 claude --print --model haiku > "$_file" 2>"$_tmp/error.log"
 
   if [ ! -s "$_file" ]; then
     echo "[Error] AI 응답이 비어있습니다." >&2
@@ -387,11 +400,17 @@ ai-branch() {
     echo "[Error] '${_from}' 브랜치로 전환할 수 없습니다." >&2
     return 1
   }
-  _pull_out=$(timeout 30 git pull origin "$_from" 2>&1)
+  _pull_out=$(_ax_timeout 30 git pull origin "$_from" 2>&1)
   _pull_rc=$?
   echo "$_pull_out" | tail -n 3
   if [ $_pull_rc -ne 0 ]; then
-    echo "[Error] '${_from}' 병합 중 충돌이 발생했습니다. 충돌 해결 후 재시도해주세요." >&2
+    echo "[Error] '${_from}' 병합 중 충돌이 발생했습니다." >&2
+    git merge --abort >/dev/null 2>&1
+    if [ -n "$_prev_branch" ]; then
+      git checkout "$_prev_branch" >/dev/null 2>&1
+      echo "  원래 브랜치(${_prev_branch})로 복원되었습니다." >&2
+    fi
+    echo "  충돌 해결 후 재시도해주세요." >&2
     return 1
   fi
 
@@ -408,7 +427,7 @@ ai-branch() {
   fi
 
   echo "[ax-driven] 원격 브랜치 생성 중..."
-  if timeout 30 git push -u origin "$_branch_name" 2>&1; then
+  if _ax_timeout 30 git push -u origin "$_branch_name" 2>&1; then
     echo ""
     echo "[ax-driven] 브랜치 생성 완료: $_branch_name (local + origin)"
   else
@@ -418,7 +437,11 @@ ai-branch() {
     read -r _del_confirm
     case "$_del_confirm" in
       y|Y)
-        git checkout "$_from" >/dev/null 2>&1
+        if [ -n "$_prev_branch" ]; then
+          git checkout "$_prev_branch" >/dev/null 2>&1
+        else
+          git checkout "$_from" >/dev/null 2>&1
+        fi
         git branch -d "$_branch_name" 2>&1
         echo "[ax-driven] 로컬 브랜치가 삭제되었습니다."
         ;;

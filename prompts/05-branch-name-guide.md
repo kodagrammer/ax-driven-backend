@@ -37,5 +37,5 @@
 ## [Examples]
 - 이슈 #3 "NullPointerException 수정" → `fix/3-fix-null-pointer-exception`
 - 이슈 #12 "로그인 API 추가" → `feat/12-add-login-api`
-- no-issue "문서 정리" → `docs/no-issue-add-organize-docs`
+- no-issue "문서 정리" → `docs/no-issue-organize-docs`
 - no-issue "CI 파이프라인 설정" → `chore/no-issue-setup-ci-pipeline`
