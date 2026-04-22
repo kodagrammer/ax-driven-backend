@@ -8,9 +8,9 @@ ai-review() {
   _base="${1:-main}"
   _review_file="$_tmp/review.md"
 
-  # _base 입력값 검증 (명령 주입 방지 — 쉘 메타문자 금지)
+  # _base 입력값 검증 (명령 주입 방지 — 브랜치명 허용 문자만 통과)
   case "$_base" in
-    *[\'\;\|\&\`\$\(\)\<\>\!]*)
+    *[!a-zA-Z0-9/_.-]*)
       echo "[Error] 유효하지 않은 브랜치명입니다: $_base" >&2
       return 1 ;;
   esac
