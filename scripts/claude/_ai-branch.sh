@@ -134,24 +134,32 @@ ai-branch() {
   _file="$_tmp/branch.md"
 
   echo "[ax-driven] 브랜치명 생성 중..."
+  _AX_TOKEN_FILE="$_tmp/token.log"
+  export _AX_TOKEN_FILE
   printf '%s\n\n---\n\n## 이슈 정보\n%s\n\n## 기존 브랜치 목록\n%s\n' \
     "$(cat "${_ax_root}/prompts/05-branch-name-guide.md")" \
     "$_issue_content" \
     "$_branches" \
-    | _ax_timeout 30 claude --print --model haiku > "$_file" 2>"$_tmp/error.log"
+    | _ax_claude --model haiku > "$_file" 2>"$_tmp/error.log"
+  _branch_rc=$?
+  unset _AX_TOKEN_FILE
 
-  if [ ! -s "$_file" ]; then
+  if [ $_branch_rc -ne 0 ] || [ ! -s "$_file" ]; then
     echo "[Error] AI 응답이 비어있습니다." >&2
     if [ -s "$_tmp/error.log" ]; then
       cat "$_tmp/error.log" >&2
     fi
-    rm -f "$_file"
+    rm -f "$_file" "$_tmp/token.log"
     return 1
   fi
   rm -f "$_tmp/error.log"
 
   _branch_name=$(head -n 1 "$_file" | tr -d '[:space:]')
   rm -f "$_file"
+  if [ -s "$_tmp/token.log" ]; then
+    cat "$_tmp/token.log"
+    rm -f "$_tmp/token.log"
+  fi
 
   # 빈 브랜치명 방어
   if [ -z "$_branch_name" ]; then

@@ -46,20 +46,28 @@ ai-issue() {
 
   # Step 2: 이슈 명령어 생성
   echo "[ax-driven] AI 생성 중..."
-  cat "${_ax_root}/prompts/04-issue-generator.md" "$_spec" | claude --print --model haiku > "$_issue" 2>"$_tmp/error.log"
+  _AX_TOKEN_FILE="$_tmp/token.log"
+  export _AX_TOKEN_FILE
+  cat "${_ax_root}/prompts/04-issue-generator.md" "$_spec" | _ax_claude --model haiku > "$_issue" 2>"$_tmp/error.log"
+  _issue_rc=$?
+  unset _AX_TOKEN_FILE
 
-  if [ ! -s "$_issue" ]; then
+  if [ $_issue_rc -ne 0 ] || [ ! -s "$_issue" ]; then
     echo "[ERROR] AI 응답이 비어있습니다." >&2
     if [ -s "$_tmp/error.log" ]; then
       echo "  에러 로그: $_tmp/error.log" >&2
       cat "$_tmp/error.log" >&2
     fi
-    rm -f "$_issue"
+    rm -f "$_issue" "$_tmp/token.log"
     return 1
   fi
   rm -f "$_tmp/error.log"
 
   echo "[ax-driven] 생성 완료: $_issue"
+  if [ -s "$_tmp/token.log" ]; then
+    cat "$_tmp/token.log"
+    rm -f "$_tmp/token.log"
+  fi
   echo ""
   echo "  편집기에서 생성된 gh 명령어를 확인해주세요."
   echo "  확인 후 명령어를 복사하여 실행해주세요."

@@ -2,6 +2,31 @@
 # _ax-utils.sh — 공용 내부 함수
 # ax-driven.sh에서 source됨. 직접 실행하지 않는다.
 
+# claude --print 래퍼 — JSON 모드로 실행 후 토큰 사용량을 $_AX_TOKEN_FILE에 기록
+# jq 미설치 시 일반 --print로 fallback
+_ax_claude() {
+  if ! command -v jq >/dev/null 2>&1; then
+    _ax_timeout 30 claude --print "$@"
+    return $?
+  fi
+  _ac_json=$(_ax_timeout 30 claude --print --output-format json "$@")
+  _ac_rc=$?
+  [ $_ac_rc -ne 0 ] && return $_ac_rc
+  printf '%s\n' "$_ac_json" | jq -r '.result // ""'
+  if [ -n "$_AX_TOKEN_FILE" ]; then
+    _ac_model=""; _ac_prev=""
+    for _ac_a in "$@"; do
+      [ "$_ac_prev" = "--model" ] && _ac_model="$_ac_a"
+      _ac_prev="$_ac_a"
+    done
+    printf '%s\n' "$_ac_json" | jq -r \
+      --arg m "$_ac_model" \
+      '"  토큰: input \(.usage.input_tokens | tostring) / output \(.usage.output_tokens | tostring)  (\($m))"' \
+      > "$_AX_TOKEN_FILE" 2>/dev/null
+  fi
+  return 0
+}
+
 # timeout 호환 래퍼 (macOS는 coreutils의 gtimeout 사용, 없으면 timeout 없이 실행)
 _ax_timeout() {
   _secs="$1"
@@ -50,20 +75,28 @@ _ax_run() {
   mkdir -p "$_tmp"
 
   echo "[ax-driven] AI 생성 중..."
+  _AX_TOKEN_FILE="$_tmp/token.log"
+  export _AX_TOKEN_FILE
   eval "$_cmd" > "$_file" 2>"$_tmp/error.log"
+  _run_rc=$?
+  unset _AX_TOKEN_FILE
 
-  if [ ! -s "$_file" ]; then
+  if [ $_run_rc -ne 0 ] || [ ! -s "$_file" ]; then
     echo "[ERROR] AI 응답이 비어있습니다." >&2
     if [ -s "$_tmp/error.log" ]; then
       echo "  에러 로그: $_tmp/error.log" >&2
       cat "$_tmp/error.log" >&2
     fi
-    rm -f "$_file"
+    rm -f "$_file" "$_tmp/token.log"
     return 1
   fi
   rm -f "$_tmp/error.log"
 
   echo "[ax-driven] 생성 완료: $_file"
+  if [ -s "$_tmp/token.log" ]; then
+    cat "$_tmp/token.log"
+    rm -f "$_tmp/token.log"
+  fi
   echo ""
   return 0
 }

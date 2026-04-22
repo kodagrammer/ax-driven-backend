@@ -18,7 +18,7 @@ ai-review() {
   echo "  리뷰 반영 후 _ax_done review 로 정리해주세요."
   echo ""
 
-  _ax_run "$_tmp" "review" "git diff '${_base}...HEAD' | cat '${_ax_root}/prompts/03-pr-reviewer.md' - | claude --print --model opus" || return 1
+  _ax_run "$_tmp" "review" "git diff '${_base}...HEAD' | cat '${_ax_root}/prompts/03-pr-reviewer.md' - | _ax_claude --model opus" || return 1
 
   ${EDITOR:-vi} "$_tmp/review.md"
 }

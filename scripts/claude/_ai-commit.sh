@@ -23,7 +23,7 @@ ai-commit() {
   echo "  취소하려면 마지막 줄에 quit 을 작성해주세요."
   echo ""
 
-  _ax_run "$_tmp" "commit" "git diff --cached | cat '${_ax_root}/prompts/00-git-commit-guide.md' - | claude --print --model sonnet" || return 1
+  _ax_run "$_tmp" "commit" "git diff --cached | cat '${_ax_root}/prompts/00-git-commit-guide.md' - | _ax_claude --model sonnet" || return 1
 
   ${EDITOR:-vi} "$_tmp/commit.md"
 
