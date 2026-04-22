@@ -106,7 +106,7 @@ ai-branch() {
       echo "[ax-driven] 이슈 조회 중..."
       _issue_err="$_tmp/gh_error.log"
       mkdir -p "$_tmp"
-      _issue_content=$(_ax_timeout 30 gh issue view "$_issue" --json title,body,labels --jq '"[Issue #\(.number // empty)] \(.title)\nLabels: \(.labels | map(.name) | join(", "))\n\(.body)"' 2>"$_issue_err")
+      _issue_content=$(_ax_timeout 30 gh issue view "$_issue" --json title,body,labels,number --jq '"[Issue #\(.number)] \(.title)\nLabels: \(.labels | map(.name) | join(", "))\n\(.body)"' 2>"$_issue_err")
       _rc=$?
       if [ $_rc -ne 0 ]; then
         echo "[Error] 이슈를 조회할 수 없습니다." >&2
@@ -176,8 +176,9 @@ ai-branch() {
           echo "[ax-driven] 취소되었습니다."
           return 0
         fi
-        if ! git check-ref-format --branch "$_branch_name" >/dev/null 2>&1; then
-          echo "[Error] 유효하지 않은 브랜치명입니다: $_branch_name" >&2
+        if ! _ax_validate_branch_name "$_branch_name"; then
+          echo "[Error] 브랜치명이 컨벤션에 맞지 않거나 유효하지 않습니다: $_branch_name" >&2
+          echo "  허용 포맷: <type>/<issue-ref>-<description>" >&2
           return 1
         fi
         ;;
@@ -215,7 +216,8 @@ ai-branch() {
   esac
 
   # --- 승인 후: from 브랜치 checkout & pull ---
-  _prev_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+  # detached HEAD 대응: symbolic-ref 실패 시 commit SHA로 복원
+  _prev_branch=$(git symbolic-ref --short -q HEAD 2>/dev/null || git rev-parse HEAD 2>/dev/null)
 
   echo "[ax-driven] ${_from} 브랜치 최신화 중..."
   git checkout "$_from" >/dev/null 2>&1 || {
@@ -269,6 +271,11 @@ ai-branch() {
         ;;
       *)
         echo "  수동 push: git push -u origin $_branch_name" >&2
+        echo "  현재 브랜치: $_branch_name" >&2
+        if [ -n "$_prev_branch" ] && [ "$_prev_branch" != "$_branch_name" ]; then
+          git checkout "$_prev_branch" >/dev/null 2>&1
+          echo "  원래 브랜치(${_prev_branch})로 복원되었습니다." >&2
+        fi
         ;;
     esac
   fi

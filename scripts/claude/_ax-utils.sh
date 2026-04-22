@@ -11,6 +11,7 @@ _ax_timeout() {
   elif command -v gtimeout >/dev/null 2>&1; then
     gtimeout "$_secs" "$@"
   else
+    echo "[WARN] timeout 미설치 — 응답 지연 시 Ctrl+C로 중단하세요. (macOS: brew install coreutils)" >&2
     "$@"
   fi
 }
