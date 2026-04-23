@@ -179,10 +179,10 @@ git diff main...HEAD -- src/service/PaymentService.java | cat ax-driven/prompts/
 | 제목 헤더 필수 | 첫 번째 `#` 헤더에서 제목 추출 → `{type}: {제목}` | `# 📄 Work Specification: ai-review 개편` → `enhancement: ai-review 개편` |
 | 나머지 자유 | 본문은 그대로 이슈 body로 들어간다 | Context, Tasks, DoD 등 |
 
-#### ���령어
+#### 명령어
 
 ```bash
-# 단일 이슈 (편집기가 열림 → 작성 → 미리보기 → Y/n)
+# 단일 이슈 (spec 없으면 템플릿 제공 → 작성 → 재실행)
 ai-issue
 
 # 일괄 생성 (tmp/에 spec01.md, spec02.md ... 배치 후)
@@ -220,7 +220,7 @@ type: bug
 
 #### 사람이 확인할 포인트
 - 미리보기에서 이슈 제목이 의도와 맞는가?
-- 명세서 내용(body)��� 누락된 요구사항이 없는가?
+- 명세서 내용(body)에 누락된 요구사항이 없는가?
 
 <br/>
 

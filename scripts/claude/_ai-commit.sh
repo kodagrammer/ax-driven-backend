@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # _ai-commit.sh — 커밋 메시지 생성
 # ax-driven.sh에서 source됨. 직접 실행하지 않는다.
 

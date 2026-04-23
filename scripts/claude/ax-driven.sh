@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # ax-driven.sh — AI 파이프라인 단축 명령어 (진입점)
 #
 # 설치:

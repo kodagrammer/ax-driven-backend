@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # _ai-issue.sh — 작업 명세서 → GitHub 이슈 생성
 # ax-driven.sh에서 source됨. 직접 실행하지 않는다.
 #
@@ -57,32 +57,19 @@ ai-issue() {
   trap 'echo ""; echo "[ax-driven] 취소되었습니다."; trap - INT; return 1' INT
 
   # --- spec 파일 탐지 ---
-  _spec_count=0
-  for _f in "$_tmp"/spec*.md; do
-    [ -f "$_f" ] || continue
-    _spec_count=$((_spec_count + 1))
-  done
+  _spec_count=$(ls "$_tmp"/spec*.md 2>/dev/null | wc -l | tr -d ' ')
 
-  # spec 파일이 없으면 → 템플릿 복사 + 편집기
+  # spec 파일이 없으면 → 안내
   if [ "$_spec_count" -eq 0 ]; then
-    mkdir -p "$_tmp"
-    cp "${_ax_root}/templates/03-work-specification.md" "$_tmp/spec.md"
-    echo "[ax-driven] 명세서 템플릿을 복사했습니다: $_tmp/spec.md"
+    echo "[ax-driven] tmp/에 spec 파일이 없습니다."
     echo ""
-    echo "  편집기에서 작업 명세서를 작성해주세요."
-    echo "  저장 후 종료하면 이슈 생성이 진행됩니다."
-    echo "  취소하려면 마지막 줄에 quit 을 작성해주세요."
+    echo "  템플릿: ${_ax_root}/templates/03-work-specification.md"
+    echo "  예시:   cp ${_ax_root}/templates/03-work-specification.md ${_tmp}/spec.md"
     echo ""
-
-    ${EDITOR:-vi} "$_tmp/spec.md"
-
-    if _ax_is_quit "$_tmp/spec.md"; then
-      echo "[ax-driven] 취소되었습니다."
-      trap - INT
-      return 0
-    fi
-
-    _spec_count=1
+    echo "  명세서를 작성한 후 다시 ai-issue를 실행해주세요."
+    echo "  복수 이슈는 tmp/에 spec01.md, spec02.md ... 형태로 배치하면 됩니다."
+    trap - INT
+    return 0
   else
     echo "[ax-driven] ${_spec_count}개 명세서를 발견했습니다:"
     for _f in "$_tmp"/spec*.md; do

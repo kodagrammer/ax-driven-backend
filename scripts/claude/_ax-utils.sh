@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # _ax-utils.sh — 공용 내부 함수
 # ax-driven.sh에서 source됨. 직접 실행하지 않는다.
 

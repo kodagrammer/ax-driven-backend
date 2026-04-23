@@ -148,6 +148,7 @@ cp ax-driven/hooks/claude/settings-example.json .claude/settings.json
 
 ```
 ax-driven/
+├── config/               label 매핑 등 사용자 설정
 ├── prompts/              AI에게 전달하는 역할·규칙 프롬프트
 ├── templates/            AI 출력물의 마크다운 포맷 정의
 ├── guides/               실무 활용 가이드
@@ -161,6 +162,7 @@ ax-driven/
 
 | 디렉토리 | 파이프라인 참조 | 삭제 시 영향 |
 |----------|----------------|-------------|
+| `config/` | **직접 참조** | label 매핑이 내장 기본값으로 fallback |
 | `prompts/` | **직접 참조** | 파이프라인 동작 안 함 |
 | `templates/` | **직접 참조** | 해당 템플릿 시나리오 동작 안 함 |
 | `guides/` | 참조 안 함 | 영향 없음 |

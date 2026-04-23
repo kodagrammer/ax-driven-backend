@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # _ai-review.sh — PR 아키텍처 리뷰
 # ax-driven.sh에서 source됨. 직접 실행하지 않는다.
 
