@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # _ai-branch.sh — 이슈 기반 브랜치 생성
 # ax-driven.sh에서 source됨. 직접 실행하지 않는다.
 

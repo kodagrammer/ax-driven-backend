@@ -1,3 +1,7 @@
+<!-- ai-issue 메타데이터 (미지정 시 enhancement)
+type: enhancement
+-->
+
 # 📄 Work Specification: [기능 명칭]
 
 ## 1. Context & Business Value

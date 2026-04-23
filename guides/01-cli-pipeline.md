@@ -25,7 +25,7 @@
 
 | 도구 | 용도 | 필요 시나리오 |
 |------|------|--------------|
-| GitHub CLI (`gh`) | 이슈/마일스톤 생성 | 시나리오 3 (GitHub 전용) |
+| GitHub CLI (`gh`) | 이슈 생성 | 시나리오 3 (GitHub 전용) |
 
 <br/>
 
@@ -37,7 +37,7 @@
 |------|----------|------|
 | 커밋 메시지 생성 | sonnet | diff 분석 + 컨벤션 적용 |
 | PR 아키텍처 리뷰 | opus | 코드 맥락을 깊이 읽어야 하는 작업 |
-| 이슈 명령어 생성 | haiku | 명세서 → gh CLI 포맷 변환 |
+| 이슈 생성 | - (AI 미사용) | 명세서 → gh CLI 직접 실행 |
 | 브랜치명 생성 | haiku | 이슈 제목 → 브랜치명 단순 변환 |
 
 > 단축 명령어(`ai-commit` 등)는 위 모델이 이미 내장되어 있다.
@@ -157,55 +157,70 @@ git diff main...HEAD -- src/service/PaymentService.java | cat ax-driven/prompts/
 
 <br/>
 
-## 📝 시나리오 3: 작업 명세서 → GitHub 이슈 일괄 생성
+## 📝 시나리오 3: 작업 명세서 → GitHub 이슈 생성
 
-작성된 작업 명세서를 AI가 분석하여 마일스톤 + 이슈 생성용 `gh` 명령어를 생성한다.
+작성된 작업 명세서를 GitHub 이슈로 직접 생성한다. AI 호출 없이 shell만으로 동작한다.
+1 spec = 1 issue. 명세서 내용이 이슈 body로 그대로 들어간다.
 
 #### 파이프라인 흐름
 
 ```
-작업 명세서 ─→ 이슈 생성기 프롬프트와 결합 ─→ AI가 gh 명령어 생성 ─→ 임시 파일 저장 ─→ [사람 확인] ─→ 명령어 실행 ─→ 임시 파일 삭제
-   입력               자동                   자동              자동         사람 판단      사람 실행        자동
+작업 명세서 ─→ title 추출 ─→ [사람 미리보기] ─→ gh issue create (body = spec 전체)
+   입력          자동           사람 확인              자동
 ```
 
-#### Step 1: 명세서 작성 (사람 작업)
+#### 명세서 작성 규칙
+
+명세서는 `templates/03-work-specification.md` 템플릿을 기반으로 작성한다.
+`ai-issue`는 제목 헤더(`# ...`)에서 이슈 title을 추출하므로, 아래 규칙을 준수해야 한다.
+
+| 규칙 | 설명 | 예시 |
+|------|------|------|
+| 제목 헤더 필수 | 첫 번째 `#` 헤더에서 제목 추출 → `{type}: {제목}` | `# 📄 Work Specification: ai-review 개편` → `enhancement: ai-review 개편` |
+| 나머지 자유 | 본문은 그대로 이슈 body로 들어간다 | Context, Tasks, DoD 등 |
+
+#### 명령어
 
 ```bash
-# 임시 디렉토리에 명세서를 작성한다
-mkdir -p ax-driven/tmp
-cp ax-driven/templates/03-work-specification.md ax-driven/tmp/spec.md
-vi ax-driven/tmp/spec.md
-```
-
-#### Step 2: 이슈 명령어 생성 (자동 구간)
-
-```bash
-# *️⃣ CLI로 실행
-# [자동 구간] 명세서 + 이슈 생성기 프롬프트 → gh 명령어를 임시 파일에 저장
-cat ax-driven/prompts/04-issue-generator.md ax-driven/tmp/spec.md | claude --print --model haiku > ax-driven/tmp/issue.md
-
-# ⏩️ 단축키 사용
+# 단일 이슈 (spec 없으면 템플릿 제공 → 작성 → 재실행)
 ai-issue
+
+# 일괄 생성 (tmp/에 spec01.md, spec02.md ... 배치 후)
+ai-issue
+
+# 정리
+_ax_done
 ```
 
-#### Step 3: 명령어 확인 후 실행 (사람 확인 구간)
+#### type 메타데이터
 
-```bash
-# [사람 확인 구간] 생성된 gh 명령어를 확인/수정
-vi ax-driven/tmp/issue.md
+명세서 상단 HTML 주석에 `type:` 을 지정하면 이슈 제목과 label이 자동 설정된다.
+`templates/03-work-specification.md` 템플릿을 기반으로 작성하는 것을 권장한다.
+**type 미지정 시 enhancement로 자동 지정된다.**
 
-# 확인 후 명령어 실행
-# (issue.md 안의 gh 명령어를 복사하여 실행)
+이슈 제목 포맷: `{type}: {제목}` (예: `feature: ai-test 엣지케이스 추출`)
 
-# [정리] 이슈 생성 완료 후 삭제
-rm ax-driven/tmp/issue.md ax-driven/tmp/spec.md
+```markdown
+<!-- ai-issue 메타데이터 (미지정 시 enhancement)
+type: bug
+-->
 ```
+
+| type 값 | title 예시 | 기본 label |
+|---------|-----------|-----------|
+| (미지정) | `enhancement: ...` | enhancement |
+| `feature` | `feature: ...` | enhancement |
+| `bug` | `bug: ...` | bug |
+| `refactor` | `refactor: ...` | enhancement |
+| `docs` | `docs: ...` | documentation |
+| `test` | `test: ...` | enhancement |
+
+> **label 커스텀:** `config/issue-labels.conf`에서 `type=label` 매핑을 수정할 수 있다.
+> 레포에 커스텀 label이 있다면 이 파일만 수정하면 된다. (예: `feature=new-feature`)
 
 #### 사람이 확인할 포인트
-- 마일스톤 이름과 설명이 의도와 맞는가?
-- 이슈 분할 단위가 적절한가? (너무 크거나 작지 않은가)
-- 라벨이 올바르게 분류되었는가?
-- 이슈 본문에 누락된 요구사항이 없는가?
+- 미리보기에서 이슈 제목이 의도와 맞는가?
+- 명세서 내용(body)에 누락된 요구사항이 없는가?
 
 <br/>
 
