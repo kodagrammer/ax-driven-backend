@@ -46,6 +46,11 @@ ai-commit() {
   _commit_rc=$?
   unset _AX_TOKEN_FILE
 
+  if [ $_commit_rc -eq 124 ]; then
+    echo "[Error-504] AI 응답 타임아웃 (90초 초과). 네트워크 상태를 확인하거나 다시 시도해주세요." >&2
+    rm -f "$_commit_file" "$_tmp/token.log" "$_tmp/error.log"
+    return 1
+  fi
   if [ $_commit_rc -ne 0 ] || [ ! -s "$_commit_file" ]; then
     echo "[ERROR] AI 응답이 비어있습니다." >&2
     if [ -s "$_tmp/error.log" ]; then

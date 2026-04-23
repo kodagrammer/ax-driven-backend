@@ -46,6 +46,11 @@ ai-review() {
   _rev_rc=$?
   unset _AX_TOKEN_FILE
 
+  if [ $_rev_rc -eq 124 ]; then
+    echo "[Error-504] AI 응답 타임아웃 (300초 초과). 네트워크 상태를 확인하거나 다시 시도해주세요." >&2
+    rm -f "$_review_file" "$_tmp/token.log" "$_tmp/error.log"
+    return 1
+  fi
   if [ $_rev_rc -ne 0 ] || [ ! -s "$_review_file" ]; then
     echo "[ERROR] AI 응답이 비어있습니다." >&2
     if [ -s "$_tmp/error.log" ]; then

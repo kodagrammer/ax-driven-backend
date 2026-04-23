@@ -129,6 +129,73 @@ ai-branch() {
   # 기존 브랜치 목록 (최근 30개로 제한)
   _branches=$(git branch -a --sort=-committerdate --format='%(refname:short)' 2>/dev/null | head -n 30)
 
+  # --- 이슈 번호로 기존 브랜치 확인 ---
+  _issue_num=""
+  case "$_issue" in
+    https://github.com/*/issues/*)
+      _issue_num=$(echo "$_issue" | grep -oE '[0-9]+$')
+      ;;
+  esac
+
+  if [ -n "$_issue_num" ]; then
+    _existing=$(echo "$_branches" | grep -E "/${_issue_num}-" | grep -v '^origin/' || true)
+    _existing_remote=$(echo "$_branches" | grep -E "^origin/.*/${_issue_num}-" | sed 's|^origin/||' || true)
+
+    if [ -n "$_existing" ]; then
+      echo ""
+      echo "  [INFO] 이슈 #${_issue_num}에 연결된 브랜치가 이미 존재합니다:"
+      for _eb in $_existing; do
+        if echo "$_existing_remote" | grep -qxF "$_eb"; then
+          echo "    - $_eb (local + origin)"
+        else
+          echo "    - $_eb (local only)"
+        fi
+      done
+      echo ""
+      printf "  기존 브랜치를 사용하시겠습니까? (Y[checkout]/n[새 브랜치 생성]): "
+      read -r _use_existing
+      case "$_use_existing" in
+        n|N) ;;
+        *)
+          if [ "$(echo "$_existing" | wc -l | tr -d ' ')" -eq 1 ]; then
+            _target="$_existing"
+          else
+            printf "  checkout할 브랜치명 입력: "
+            read -r _target
+          fi
+          if [ -n "$_target" ]; then
+            git checkout "$_target" 2>&1
+            return $?
+          fi
+          ;;
+      esac
+    elif [ -n "$_existing_remote" ]; then
+      echo ""
+      echo "  [INFO] 이슈 #${_issue_num}에 연결된 원격 브랜치가 있습니다:"
+      for _erb in $_existing_remote; do
+        echo "    - origin/$_erb"
+      done
+      echo ""
+      printf "  로컬에 checkout하시겠습니까? (Y[checkout]/n[새 브랜치 생성]): "
+      read -r _use_remote
+      case "$_use_remote" in
+        n|N) ;;
+        *)
+          if [ "$(echo "$_existing_remote" | wc -l | tr -d ' ')" -eq 1 ]; then
+            _target="$_existing_remote"
+          else
+            printf "  checkout할 브랜치명 입력: "
+            read -r _target
+          fi
+          if [ -n "$_target" ]; then
+            git checkout -b "$_target" "origin/$_target" 2>&1
+            return $?
+          fi
+          ;;
+      esac
+    fi
+  fi
+
   # --- AI 브랜치명 생성 ---
   mkdir -p "$_tmp"
   _file="$_tmp/branch.md"
@@ -144,6 +211,11 @@ ai-branch() {
   _branch_rc=$?
   unset _AX_TOKEN_FILE
 
+  if [ $_branch_rc -eq 124 ]; then
+    echo "[Error-504] AI 응답 타임아웃 (30초 초과). 네트워크 상태를 확인하거나 다시 시도해주세요." >&2
+    rm -f "$_file" "$_tmp/token.log" "$_tmp/error.log"
+    return 1
+  fi
   if [ $_branch_rc -ne 0 ] || [ ! -s "$_file" ]; then
     echo "[Error] AI 응답이 비어있습니다." >&2
     if [ -s "$_tmp/error.log" ]; then
