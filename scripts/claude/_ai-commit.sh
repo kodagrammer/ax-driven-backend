@@ -23,9 +23,47 @@ ai-commit() {
   echo "  취소하려면 마지막 줄에 quit 을 작성해주세요."
   echo ""
 
-  _ax_run "$_tmp" "commit" "git diff --cached | cat '${_ax_root}/prompts/00-git-commit-guide.md' - | _ax_claude 90 --model sonnet" || return 1
+  _commit_file="$_tmp/commit.md"
 
-  ${EDITOR:-vi} "$_tmp/commit.md"
+  # 임시 파일 안전장치
+  if [ -f "$_commit_file" ]; then
+    echo "" >&2
+    echo "[WARN] 작업중이던 항목이 있습니다: $_commit_file" >&2
+    echo "  확인: \${EDITOR:-vi} $_commit_file" >&2
+    echo "  정리: _ax_done commit" >&2
+    echo "" >&2
+    return 1
+  fi
+
+  mkdir -p "$_tmp"
+
+  echo "[ax-driven] AI 생성 중..."
+  _AX_TOKEN_FILE="$_tmp/token.log"
+  export _AX_TOKEN_FILE
+  _sys_prompt=$(cat "${_ax_root}/prompts/00-git-commit-guide.md")
+  git diff --cached \
+    | _ax_claude 90 --model sonnet --system-prompt "$_sys_prompt" > "$_commit_file" 2>"$_tmp/error.log"
+  _commit_rc=$?
+  unset _AX_TOKEN_FILE
+
+  if [ $_commit_rc -ne 0 ] || [ ! -s "$_commit_file" ]; then
+    echo "[ERROR] AI 응답이 비어있습니다." >&2
+    if [ -s "$_tmp/error.log" ]; then
+      cat "$_tmp/error.log" >&2
+    fi
+    rm -f "$_commit_file" "$_tmp/token.log"
+    return 1
+  fi
+  rm -f "$_tmp/error.log"
+
+  echo "[ax-driven] 생성 완료: $_commit_file"
+  if [ -s "$_tmp/token.log" ]; then
+    cat "$_tmp/token.log"
+    rm -f "$_tmp/token.log"
+  fi
+  echo ""
+
+  ${EDITOR:-vi} "$_commit_file"
 
   # quit 감지 — 임시 파일 유지
   if _ax_is_quit "$_tmp/commit.md"; then

@@ -136,11 +136,11 @@ ai-branch() {
   echo "[ax-driven] 브랜치명 생성 중..."
   _AX_TOKEN_FILE="$_tmp/token.log"
   export _AX_TOKEN_FILE
-  printf '%s\n\n---\n\n## 이슈 정보\n%s\n\n## 기존 브랜치 목록\n%s\n' \
-    "$(cat "${_ax_root}/prompts/05-branch-name-guide.md")" \
+  _sys_prompt=$(cat "${_ax_root}/prompts/05-branch-name-guide.md")
+  printf '## 이슈 정보\n%s\n\n## 기존 브랜치 목록\n%s\n' \
     "$_issue_content" \
     "$_branches" \
-    | _ax_claude 30 --model haiku > "$_file" 2>"$_tmp/error.log"
+    | _ax_claude 30 --model haiku --system-prompt "$_sys_prompt" > "$_file" 2>"$_tmp/error.log"
   _branch_rc=$?
   unset _AX_TOKEN_FILE
 

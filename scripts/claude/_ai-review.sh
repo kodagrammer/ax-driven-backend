@@ -41,7 +41,6 @@ ai-review() {
   echo "[ax-driven] AI 생성 중..."
   _AX_TOKEN_FILE="$_tmp/token.log"
   export _AX_TOKEN_FILE
-  # eval 없이 직접 파이프라인 — _base는 git diff 인자로만 전달
   { cat "${_ax_root}/prompts/03-pr-reviewer.md"; git diff "$_base...HEAD"; } \
     | _ax_claude 300 --model opus > "$_review_file" 2>"$_tmp/error.log"
   _rev_rc=$?
