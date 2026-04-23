@@ -19,7 +19,7 @@
 |------|----------|------|
 | Git | 필수 | 버전 관리, diff 추출 |
 | Claude Code | 필수 | AI 파이프라인 실행 (`claude --print`) |
-| GitHub CLI (`gh`) | 선택 | 이슈·마일스톤 생성 (GitHub 전용) |
+| GitHub CLI (`gh`) | 선택 | 이슈 생성 (GitHub 전용) |
 
 > Git과 Claude Code만 있으면 핵심 기능(커밋, 리뷰)은 어떤 플랫폼에서든 동작한다.
 > **Windows는 WSL(Windows Subsystem for Linux) 환경에서만 동작한다.**
@@ -73,7 +73,7 @@ echo 'source /absolute/path/to/ax-driven/scripts/claude/ax-driven.sh' >> ~/.zshr
 | `ai-branch -i <이슈링크or이슈내용> [--from <브랜치명>]` | 이슈 기반 브랜치명 생성 → 확인 → 생성 | haiku |
 | `ai-commit` | staged diff → 커밋 메시지 생성 → 편집기 확인 → 커밋 | sonnet |
 | `ai-review [base]` | diff → 아키텍처 리뷰 생성 → 편집기 확인 | opus |
-| `ai-issue` | 명세서 작성 → gh 명령어 생성 → 편집기 확인 | haiku |
+| `ai-issue` | 명세서 → 미리보기 → GitHub 이슈 생성 | - (AI 미사용) |
 | `_ax_done [name]` | 임시 파일 정리 (`commit`, `review`, `issue`, `spec` 또는 전체) | - |
 
 #### 사용 예시
@@ -94,9 +94,13 @@ ai-review develop      # develop 기준
 _ax_done review        # 리뷰 반영 후 정리
 
 # 이슈 생성
+ai-issue                    # spec 내 type 메타데이터 기반 (미지정 시 enhancement)
+
+# 일괄 생성 (tmp/에 spec01.md, spec02.md ... 배치 후)
 ai-issue
-# 1) 명세서 작성 → 2) gh 명령어 생성 → 3) 확인 후 실행
-_ax_done issue && _ax_done spec
+
+# 정리
+_ax_done
 ```
 
 ### 3. (선택) 수동 CLI 파이프라인

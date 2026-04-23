@@ -24,7 +24,7 @@ _ax_claude() {
     done
     printf '%s\n' "$_ac_json" | jq -r \
       --arg m "$_ac_model" \
-      '"  토큰: input \(.usage.input_tokens | tostring) / output \(.usage.output_tokens | tostring)  (\($m))"' \
+      '"  토큰 (\($m)): input \(.usage.input_tokens) + cache_read \(.usage.cache_read_input_tokens // 0) + cache_create \(.usage.cache_creation_input_tokens // 0) / output \(.usage.output_tokens)  ($\(.total_cost_usd | tostring | .[0:6]))"' \
       > "$_AX_TOKEN_FILE" 2>/dev/null
   fi
   return 0

@@ -1,78 +1,146 @@
 #!/bin/sh
-# _ai-issue.sh — 작업 명세서 → 이슈 생성
+# _ai-issue.sh — 작업 명세서 → GitHub 이슈 생성
 # ax-driven.sh에서 source됨. 직접 실행하지 않는다.
+#
+# 사용법:
+#   ai-issue                spec 파일이 없으면 템플릿 복사 → 편집기 → 이슈 생성
+#   (tmp/spec*.md 배치)     복수 spec 파일 감지 → 각각 이슈 생성
+#
+# AI 호출 없음. spec에서 title/body를 추출하여 gh issue create로 직접 생성.
+# 1 spec = 1 issue.
+# type은 spec 내 HTML 주석 메타데이터(type: xxx)에서 추출. 미지정 시 enhancement.
+
+# config/issue-labels.conf에서 label 조회
+# 사용법: _issue_label <type>
+# 출력: label 문자열. 설정 파일 없거나 매칭 없으면 빈 문자열.
+_issue_label() {
+  _il_conf="$(_ax_find)/config/issue-labels.conf"
+  [ -f "$_il_conf" ] || return 0
+  grep -v '^#' "$_il_conf" | grep "^${1}=" | head -1 | cut -d'=' -f2
+}
+
+# spec 파일에서 type 메타데이터 추출
+# <!-- ... type: bug ... --> 형태에서 읽음
+# 사용법: _issue_type <spec_file>
+# 출력: "type label" (공백 구분, type은 사용자 원본 값)
+_issue_type() {
+  _it_raw=$(sed -n '/^<!--/,/-->/p' "$1" | grep -i '^type:' | head -1 | sed 's/^[Tt]ype: *//' | tr -d '[:space:]')
+  _it_key=$(echo "$_it_raw" | tr '[:upper:]' '[:lower:]')
+  [ -z "$_it_key" ] && _it_key="enhancement"
+
+  # label: 설정 파일 우선, 없으면 내장 기본값
+  _it_label=$(_issue_label "$_it_key")
+  if [ -z "$_it_label" ]; then
+    case "$_it_key" in
+      bug)           _it_label="bug" ;;
+      docs)          _it_label="documentation" ;;
+      documentation) _it_label="documentation" ;;
+      *)             _it_label="enhancement" ;;
+    esac
+  fi
+
+  echo "$_it_key $_it_label"
+}
+
+# spec 파일에서 이슈 title 추출
+# 사용법: _issue_title <spec_file> <type>
+_issue_title() {
+  _it_name=$(grep '^# ' "$1" | head -1 | sed 's/^# *//;s/^📄 Work Specification: *//')
+  echo "${2}: ${_it_name}"
+}
 
 ai-issue() {
   _ax_root=$(_ax_find) || return 1
   _tmp="${_ax_root}/tmp"
-  _spec="$_tmp/spec.md"
-  _issue="$_tmp/issue.md"
 
-  # issue 임시 파일 안전장치
-  if [ -f "$_issue" ]; then
-    echo "" >&2
-    echo "[WARN] 작업중이던 항목이 있습니다: $_issue" >&2
-    echo "  확인: \${EDITOR:-vi} $_issue" >&2
-    echo "  정리: _ax_done issue" >&2
-    echo "" >&2
-    return 1
-  fi
+  # Ctrl+C 시그널 처리
+  trap 'echo ""; echo "[ax-driven] 취소되었습니다."; trap - INT; return 1' INT
 
-  mkdir -p "$_tmp"
+  # --- spec 파일 탐지 ---
+  _spec_count=0
+  for _f in "$_tmp"/spec*.md; do
+    [ -f "$_f" ] || continue
+    _spec_count=$((_spec_count + 1))
+  done
 
-  # Step 1: 명세서 작성
-  if [ -f "$_spec" ]; then
-    echo "[ax-driven] 기존 명세서를 사용합니다: $_spec"
-  else
-    cp "${_ax_root}/templates/03-work-specification.md" "$_spec"
-    echo "[ax-driven] 명세서 템플릿을 복사했습니다: $_spec"
-  fi
+  # spec 파일이 없으면 → 템플릿 복사 + 편집기
+  if [ "$_spec_count" -eq 0 ]; then
+    mkdir -p "$_tmp"
+    cp "${_ax_root}/templates/03-work-specification.md" "$_tmp/spec.md"
+    echo "[ax-driven] 명세서 템플릿을 복사했습니다: $_tmp/spec.md"
+    echo ""
+    echo "  편집기에서 작업 명세서를 작성해주세요."
+    echo "  저장 후 종료하면 이슈 생성이 진행됩니다."
+    echo "  취소하려면 마지막 줄에 quit 을 작성해주세요."
+    echo ""
 
-  echo ""
-  echo "  편집기에서 작업 명세서를 작성해주세요."
-  echo "  저장 후 종료하면 이슈 생성이 진행됩니다."
-  echo "  취소하려면 마지막 줄에 quit 을 작성해주세요."
-  echo ""
+    ${EDITOR:-vi} "$_tmp/spec.md"
 
-  ${EDITOR:-vi} "$_spec"
-
-  # quit 감지 — 임시 파일 유지
-  if _ax_is_quit "$_spec"; then
-    echo "[ax-driven] 이슈 생성이 취소되었습니다. 임시 파일 유지: $_spec"
-    echo "  다시 수정: \${EDITOR:-vi} $_spec"
-    echo "  정리: _ax_done spec"
-    return 0
-  fi
-
-  # Step 2: 이슈 명령어 생성
-  echo "[ax-driven] AI 생성 중..."
-  _AX_TOKEN_FILE="$_tmp/token.log"
-  export _AX_TOKEN_FILE
-  cat "${_ax_root}/prompts/04-issue-generator.md" "$_spec" | _ax_claude 30 --model haiku > "$_issue" 2>"$_tmp/error.log"
-  _issue_rc=$?
-  unset _AX_TOKEN_FILE
-
-  if [ $_issue_rc -ne 0 ] || [ ! -s "$_issue" ]; then
-    echo "[ERROR] AI 응답이 비어있습니다." >&2
-    if [ -s "$_tmp/error.log" ]; then
-      echo "  에러 로그: $_tmp/error.log" >&2
-      cat "$_tmp/error.log" >&2
+    if _ax_is_quit "$_tmp/spec.md"; then
+      echo "[ax-driven] 취소되었습니다."
+      trap - INT
+      return 0
     fi
-    rm -f "$_issue" "$_tmp/token.log"
-    return 1
-  fi
-  rm -f "$_tmp/error.log"
 
-  echo "[ax-driven] 생성 완료: $_issue"
-  if [ -s "$_tmp/token.log" ]; then
-    cat "$_tmp/token.log"
-    rm -f "$_tmp/token.log"
+    _spec_count=1
+  else
+    echo "[ax-driven] ${_spec_count}개 명세서를 발견했습니다:"
+    for _f in "$_tmp"/spec*.md; do
+      [ -f "$_f" ] || continue
+      echo "  - $(basename "$_f")"
+    done
+    echo ""
   fi
-  echo ""
-  echo "  편집기에서 생성된 gh 명령어를 확인해주세요."
-  echo "  확인 후 명령어를 복사하여 실행해주세요."
-  echo "  완료 후 _ax_done issue && _ax_done spec 으로 정리해주세요."
-  echo ""
 
-  ${EDITOR:-vi} "$_issue"
+  # --- 미리보기 ---
+  echo "  생성할 이슈:"
+  _idx=0
+  for _spec in "$_tmp"/spec*.md; do
+    [ -f "$_spec" ] || continue
+    _idx=$((_idx + 1))
+    _type_pair=$(_issue_type "$_spec")
+    _type=$(echo "$_type_pair" | cut -d' ' -f1)
+    _label=$(echo "$_type_pair" | cut -d' ' -f2)
+    _t=$(_issue_title "$_spec" "$_type")
+    echo "  [${_idx}] ${_t} [${_label}]"
+  done
+
+  echo ""
+  printf "  진행하시겠습니까? (Y/n): "
+  read -r _confirm
+
+  case "$_confirm" in
+    n|N)
+      echo "[ax-driven] 취소되었습니다."
+      trap - INT
+      return 0
+      ;;
+  esac
+
+  # --- 이슈 생성 ---
+  echo ""
+  for _spec in "$_tmp"/spec*.md; do
+    [ -f "$_spec" ] || continue
+
+    _type_pair=$(_issue_type "$_spec")
+    _type=$(echo "$_type_pair" | cut -d' ' -f1)
+    _label=$(echo "$_type_pair" | cut -d' ' -f2)
+    _t=$(_issue_title "$_spec" "$_type")
+
+    _result=$(gh issue create --title "$_t" --body-file "$_spec" --label "$_label" 2>"$_tmp/exec-error.log")
+    _exec_rc=$?
+
+    if [ "$_exec_rc" -eq 0 ] && [ -n "$_result" ]; then
+      echo "  [OK] $_result"
+    else
+      echo "  [FAIL] $_t" >&2
+      [ -s "$_tmp/exec-error.log" ] && sed 's/^/    /' "$_tmp/exec-error.log" >&2
+    fi
+    rm -f "$_tmp/exec-error.log"
+  done
+
+  # --- 정리 ---
+  echo ""
+  echo "[ax-driven] 완료. 정리: _ax_done"
+  trap - INT
 }
