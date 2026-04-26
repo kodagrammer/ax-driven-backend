@@ -2,8 +2,6 @@
 # tests/run.sh — ax-driven 기본 smoke test
 # 사용법: bash tests/run.sh
 
-set -e
-
 _PASS=0
 _FAIL=0
 _ROOT="$(cd "$(dirname "$0")/.." && pwd)"

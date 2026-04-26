@@ -151,29 +151,29 @@ cp ax-driven/hooks/claude/settings-example.json .claude/settings.json
 
 ```
 ax-driven/
-├── bin/                  CLI 진입점 (source ax-driven/bin/ax-driven.sh)
-├── providers/            Provider별 AI 실행 로직 (현재: Claude)
+├── bin/                  # CLI 진입점 (source ax-driven/bin/ax-driven.sh)
+├── providers/            # Provider별 AI 실행 로직 (현재: Claude)
 ├── scripts/
-│   ├── commands/         프롬프트 체이닝 명령어 스크립트
-│   ├── lib/              공용 셸 유틸리티
-│   └── claude/           호환성 래퍼 (기존 경로 유지)
-├── prompts/              AI에게 전달하는 작업별 프롬프트
-├── agents/               역할 기반 에이전트 프롬프트 (예정)
-├── schemas/              AI 출력물 JSON Schema 계약 (예정)
-├── templates/            AI 출력물의 마크다운 포맷 정의
-├── config/               label 매핑 등 사용자 설정
+│   ├── commands/         # 프롬프트 체이닝 명령어 스크립트
+│   ├── lib/              # 공용 셸 유틸리티
+│   └── claude/           # 호환성 래퍼 (기존 경로 유지)
+├── prompts/              # AI에게 전달하는 작업별 프롬프트
+├── agents/               # 역할 기반 에이전트 프롬프트 (예정)
+├── schemas/              # AI 출력물 JSON Schema 계약 (예정)
+├── templates/            # AI 출력물의 마크다운 포맷 정의
+├── config/               # label 매핑 등 사용자 설정
 ├── hooks/
-│   ├── git/              Git Hooks 스크립트
-│   └── claude/           Claude Code Hooks 설정
+│   ├── git/              # Git Hooks 스크립트
+│   └── claude/           # Claude Code Hooks 설정
 ├── docs/
-│   └── guides/           실무 활용 가이드
-├── tests/                CLI 회귀 테스트
-└── workflows/            GitHub Actions 워크플로우 템플릿
+│   └── guides/           # 실무 활용 가이드
+├── tests/                # CLI 회귀 테스트
+└── workflows/            # GitHub Actions 워크플로우 템플릿
 ```
 
 | 디렉토리 | 파이프라인 참조 | 삭제 시 영향 |
 |----------|----------------|-------------|
-| `bin/` | **진입점** | source 불가 (scripts/claude/ 래퍼로 fallback 가능) |
+| `bin/` | **진입점** | source 불가 (호환 래퍼도 bin/에 의존) |
 | `providers/` | **직접 참조** | AI 호출 불가 |
 | `scripts/commands/` | **직접 참조** | 명령어 사용 불가 |
 | `scripts/lib/` | **직접 참조** | 유틸리티 함수 사용 불가 |
