@@ -2,6 +2,13 @@
 # utils.sh — 공용 내부 함수 (provider-agnostic)
 # bin/ax-driven.sh에서 source됨. 직접 실행하지 않는다.
 
+# 현재 스크립트 파일 경로를 반환 (bash/zsh 호환)
+# bash: BASH_SOURCE가 소스된 파일 경로
+# zsh:  BASH_SOURCE 미정의 → $0이 소스된 파일 경로
+_ax_current_file() {
+  printf '%s\n' "${BASH_SOURCE:-$0}"
+}
+
 # PWD에서 상위로 올라가며 ax-driven 디렉토리를 찾는다
 # 탐지 기준: 디렉토리명이 "ax-driven"으로 시작하고 prompts/가 존재
 _ax_find() {
@@ -47,8 +54,7 @@ _ax_timeout() {
 
 # 임시 디렉토리 경로를 반환 (ax-driven/tmp)
 _ax_tmp() {
-  _root=$(_ax_find) || return 1
-  echo "${_root}/tmp"
+  echo "${_AX_ROOT}/tmp"
 }
 
 # 마지막 줄이 quit인지 확인

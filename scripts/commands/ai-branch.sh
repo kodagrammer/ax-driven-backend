@@ -23,7 +23,7 @@ _ax_validate_branch_name() {
 }
 
 ai-branch() {
-  _ax_root=$(_ax_find) || return 1
+  _ax_root="$_AX_ROOT"
   _tmp="${_ax_root}/tmp"
   _from="main"
   _issue=""

@@ -16,12 +16,12 @@
 
 # --- 부트스트랩: BASH_SOURCE 기준으로 모든 모듈을 로드 ---
 # _ax_find는 런타임(명령어 실행 시) 전용 — 현재 프로젝트의 prompts/config/tmp를 찾는다.
-_ax_bin_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-_ax_root="$(cd "${_ax_bin_dir}/.." && pwd)"
+_ax_bin_dir="$(cd "$(dirname "${BASH_SOURCE:-$0}")" && pwd)"
+_AX_ROOT="$(cd "${_ax_bin_dir}/.." && pwd)"
 
-. "${_ax_root}/scripts/lib/utils.sh"
-. "${_ax_root}/providers/claude.sh"
-. "${_ax_root}/scripts/commands/ai-commit.sh"
-. "${_ax_root}/scripts/commands/ai-branch.sh"
-. "${_ax_root}/scripts/commands/ai-review.sh"
-. "${_ax_root}/scripts/commands/ai-issue.sh"
+. "${_AX_ROOT}/scripts/lib/utils.sh"
+. "${_AX_ROOT}/providers/claude.sh"
+. "${_AX_ROOT}/scripts/commands/ai-commit.sh"
+. "${_AX_ROOT}/scripts/commands/ai-branch.sh"
+. "${_AX_ROOT}/scripts/commands/ai-review.sh"
+. "${_AX_ROOT}/scripts/commands/ai-issue.sh"

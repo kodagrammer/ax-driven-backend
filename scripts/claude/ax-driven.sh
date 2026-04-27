@@ -6,5 +6,5 @@
 # 기존: source ax-driven/scripts/claude/ax-driven.sh
 # 신규: source ax-driven/bin/ax-driven.sh (권장)
 
-_ax_wrapper_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_ax_wrapper_dir="$(cd "$(dirname "${BASH_SOURCE:-$0}")" && pwd)"
 . "${_ax_wrapper_dir}/../../bin/ax-driven.sh"

@@ -3,7 +3,7 @@
 # ax-driven.sh에서 source됨. 직접 실행하지 않는다.
 
 ai-commit() {
-  _ax_root=$(_ax_find) || return 1
+  _ax_root="$_AX_ROOT"
   _tmp="${_ax_root}/tmp"
 
   # 스테이징된 파일 확인

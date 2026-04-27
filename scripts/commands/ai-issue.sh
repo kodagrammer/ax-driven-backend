@@ -14,7 +14,7 @@
 # 사용법: _issue_label <type>
 # 출력: label 문자열. 설정 파일 없거나 매칭 없으면 빈 문자열.
 _issue_label() {
-  _il_conf="$(_ax_find)/config/issue-labels.conf"
+  _il_conf="${_AX_ROOT}/config/issue-labels.conf"
   [ -f "$_il_conf" ] || return 0
   grep -v '^#' "$_il_conf" | grep "^${1}=" | head -1 | cut -d'=' -f2
 }
@@ -50,7 +50,7 @@ _issue_title() {
 }
 
 ai-issue() {
-  _ax_root=$(_ax_find) || return 1
+  _ax_root="$_AX_ROOT"
   _tmp="${_ax_root}/tmp"
 
   # Ctrl+C 시그널 처리
