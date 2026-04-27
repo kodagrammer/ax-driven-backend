@@ -6,6 +6,13 @@ ai-commit() {
   _ax_root="$_AX_ROOT"
   _tmp="${_ax_root}/tmp"
 
+  case "${1:-}" in
+    --*)
+      echo "[Error] 알 수 없는 옵션: $1" >&2
+      return 1
+      ;;
+  esac
+
   # 스테이징된 파일 확인
   if [ -z "$(git diff --cached --name-only)" ]; then
     echo "[ERROR] 스테이징된 변경 사항이 없습니다." >&2

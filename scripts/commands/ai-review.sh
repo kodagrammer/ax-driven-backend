@@ -5,6 +5,14 @@
 ai-review() {
   _ax_root="$_AX_ROOT"
   _tmp="${_ax_root}/tmp"
+
+  case "${1:-}" in
+    --*)
+      echo "[Error] 알 수 없는 옵션: $1" >&2
+      return 1
+      ;;
+  esac
+
   _base="${1:-main}"
   _review_file="$_tmp/review.md"
 

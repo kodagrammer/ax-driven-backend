@@ -53,6 +53,13 @@ ai-issue() {
   _ax_root="$_AX_ROOT"
   _tmp="${_ax_root}/tmp"
 
+  case "${1:-}" in
+    --*)
+      echo "[Error] 알 수 없는 옵션: $1" >&2
+      return 1
+      ;;
+  esac
+
   # Ctrl+C 시그널 처리
   trap 'echo ""; echo "[ax-driven] 취소되었습니다."; trap - INT; return 1' INT
 
