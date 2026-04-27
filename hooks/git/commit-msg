@@ -31,14 +31,14 @@ if ! echo "$SUBJECT" | grep -qE "^(${TYPES})\(.+\): .+ \(#[0-9]+\)$" && \
   exit 1
 fi
 
-# --- Error: subject 길이 검증 (50자 이내) ---
+# --- Error: subject 길이 검증 (100자 이내) ---
 # type(scope): 와 (#N)/(no-issue)를 제외한 순수 subject 부분 추출
 PURE_SUBJECT=$(echo "$SUBJECT" | sed -E 's/^[a-z]+\([^)]+\): //' | sed -E 's/ \(#[0-9]+\)$//' | sed -E 's/ \(no-issue\)$//')
 SUBJECT_LEN=$(printf '%s' "$PURE_SUBJECT" | wc -m | tr -d ' ')
 
-if [ "$SUBJECT_LEN" -gt 50 ]; then
+if [ "$SUBJECT_LEN" -gt 100 ]; then
   echo ""
-  echo "[ERROR] subject가 50자를 초과했습니다. (현재: ${SUBJECT_LEN}자)"
+  echo "[ERROR] subject가 100자를 초과했습니다. (현재: ${SUBJECT_LEN}자)"
   echo "  subject: ${PURE_SUBJECT}"
   echo ""
   exit 1
