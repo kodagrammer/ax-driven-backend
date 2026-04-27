@@ -14,13 +14,12 @@
 #   ai-issue      작업 명세서 → 이슈 명령어 생성 → 편집기
 #   _ax_done      임시 파일 정리
 
-# --- 부트스트랩: BASH_SOURCE 기준으로 utils.sh를 먼저 로드하여 _ax_find를 확보 ---
+# --- 부트스트랩: BASH_SOURCE 기준으로 모든 모듈을 로드 ---
+# _ax_find는 런타임(명령어 실행 시) 전용 — 현재 프로젝트의 prompts/config/tmp를 찾는다.
 _ax_bin_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-. "${_ax_bin_dir}/../scripts/lib/utils.sh"
+_ax_root="$(cd "${_ax_bin_dir}/.." && pwd)"
 
-# --- 모듈 로드 ---
-_ax_root=$(_ax_find) || return 1
-
+. "${_ax_root}/scripts/lib/utils.sh"
 . "${_ax_root}/providers/claude.sh"
 . "${_ax_root}/scripts/commands/ai-commit.sh"
 . "${_ax_root}/scripts/commands/ai-branch.sh"

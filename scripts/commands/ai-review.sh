@@ -48,10 +48,11 @@ ai-review() {
   unset _AX_TOKEN_FILE
 
   if [ $_rev_rc -ne 0 ] || [ ! -s "$_review_file" ]; then
-    echo "[ERROR] AI 응답이 비어있습니다." >&2
     if [ -s "$_tmp/error.log" ]; then
-      echo "  에러 로그: $_tmp/error.log" >&2
+      echo "[ERROR] AI 요청 실패:" >&2
       cat "$_tmp/error.log" >&2
+    else
+      echo "[ERROR] AI 응답이 비어있습니다." >&2
     fi
     rm -f "$_review_file" "$_tmp/token.log"
     return 1
