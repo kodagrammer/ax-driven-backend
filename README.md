@@ -30,9 +30,9 @@
 
 | 방식 | 역할 | 상세 가이드 |
 |------|------|------------|
-| **프롬프트 체이닝** (`scripts/`, `prompts/`) | 커밋 메시지 생성, PR 리뷰, 이슈 생성 등을 AI에게 위임 | [CLI & 프롬프트 체이닝 가이드](guides/01-cli-pipeline.md) |
-| **Git Hooks** (`hooks/git/`) | 커밋 컨벤션 검증, 민감 파일 차단, push 전 원격 동기화 | [Git Hooks 가이드](guides/02-git-hooks.md) |
-| **Claude Code Hooks** (`hooks/claude/`) | Claude Code 세션 내 lint 자동 실행, 커밋 규칙 주입 | [Claude Code Hooks 가이드](guides/03-claude-code-hooks.md) |
+| **프롬프트 체이닝** (`scripts/`, `prompts/`) | 커밋 메시지 생성, PR 리뷰, 이슈 생성 등을 AI에게 위임 | [CLI & 프롬프트 체이닝 가이드](docs/guides/01-cli-pipeline.md) |
+| **Git Hooks** (`hooks/git/`) | 커밋 컨벤션 검증, 민감 파일 차단, push 전 원격 동기화 | [Git Hooks 가이드](docs/guides/02-git-hooks.md) |
+| **Claude Code Hooks** (`hooks/claude/`) | Claude Code 세션 내 lint 자동 실행, 커밋 규칙 주입 | [Claude Code Hooks 가이드](docs/guides/03-claude-code-hooks.md) |
 
 > **원칙:** 생성은 자동으로, 실행은 사람이. 되돌리기 어려운 작업(커밋, 이슈 발행, PR)은 반드시 사람이 확인 후 실행한다.
 
@@ -59,11 +59,14 @@ git subtree pull --prefix=ax-driven https://github.com/{your-org}/ax-driven-back
 `ax-driven.sh`를 source하면 단축 명령어를 사용할 수 있다.
 
 ```bash
-# 단축 명령어 활성화
+# 단축 명령어 활성화 (권장)
+source ax-driven/bin/ax-driven.sh
+
+# 기존 경로도 동작 (호환)
 source ax-driven/scripts/claude/ax-driven.sh
 
 # 영구 등록 (선택)
-echo 'source /absolute/path/to/ax-driven/scripts/claude/ax-driven.sh' >> ~/.zshrc
+echo 'source /absolute/path/to/ax-driven/bin/ax-driven.sh' >> ~/.zshrc
 ```
 
 #### 명령어 목록
@@ -115,7 +118,7 @@ git diff --cached | cat ax-driven/prompts/00-git-commit-guide.md - | claude --pr
 git diff main...HEAD | cat ax-driven/prompts/03-pr-reviewer.md - | claude --print --model opus
 ```
 
-> 시나리오별 상세 사용법, 임시 파일 패턴 안내는 [CLI & 프롬프트 체이닝 가이드](guides/01-cli-pipeline.md) 참조.
+> 시나리오별 상세 사용법, 임시 파일 패턴 안내는 [CLI & 프롬프트 체이닝 가이드](docs/guides/01-cli-pipeline.md) 참조.
 
 ### 4. (선택) Git Hooks 설치
 
@@ -124,7 +127,7 @@ sh ax-driven/hooks/git/install.sh    # 설치
 sh ax-driven/hooks/git/uninstall.sh  # 해제
 ```
 
-> 상세 설정은 [Git Hooks 가이드](guides/02-git-hooks.md) 참조.
+> 상세 설정은 [Git Hooks 가이드](docs/guides/02-git-hooks.md) 참조.
 
 ### 5. (선택) Claude Code Hooks 설정
 
@@ -132,7 +135,7 @@ sh ax-driven/hooks/git/uninstall.sh  # 해제
 cp ax-driven/hooks/claude/settings-example.json .claude/settings.json
 ```
 
-> 상세 설정은 [Claude Code Hooks 가이드](guides/03-claude-code-hooks.md) 참조.
+> 상세 설정은 [Claude Code Hooks 가이드](docs/guides/03-claude-code-hooks.md) 참조.
 
 ### 6. (선택) IDE 연동
 
@@ -148,27 +151,40 @@ cp ax-driven/hooks/claude/settings-example.json .claude/settings.json
 
 ```
 ax-driven/
-├── config/               label 매핑 등 사용자 설정
-├── prompts/              AI에게 전달하는 역할·규칙 프롬프트
-├── templates/            AI 출력물의 마크다운 포맷 정의
-├── guides/               실무 활용 가이드
-├── hooks/
-│   ├── git/              Git Hooks 스크립트
-│   └── claude/           Claude Code Hooks 설정
+├── bin/                  # CLI 진입점 (source ax-driven/bin/ax-driven.sh)
+├── providers/            # Provider별 AI 실행 로직 (현재: Claude)
 ├── scripts/
-│   └── claude/           프롬프트 체이닝 단축 명령어 스크립트
-└── workflows/            GitHub Actions 워크플로우 템플릿
+│   ├── commands/         # 프롬프트 체이닝 명령어 스크립트
+│   ├── lib/              # 공용 셸 유틸리티
+│   └── claude/           # 호환성 래퍼 (기존 경로 유지)
+├── prompts/              # AI에게 전달하는 작업별 프롬프트
+├── agents/               # 역할 기반 에이전트 프롬프트 (예정)
+├── schemas/              # AI 출력물 JSON Schema 계약 (예정)
+├── templates/            # AI 출력물의 마크다운 포맷 정의
+├── config/               # label 매핑 등 사용자 설정
+├── hooks/
+│   ├── git/              # Git Hooks 스크립트
+│   └── claude/           # Claude Code Hooks 설정
+├── docs/
+│   └── guides/           # 실무 활용 가이드
+├── tests/                # CLI 회귀 테스트
+└── workflows/            # GitHub Actions 워크플로우 템플릿
 ```
 
 | 디렉토리 | 파이프라인 참조 | 삭제 시 영향 |
 |----------|----------------|-------------|
-| `config/` | **직접 참조** | label 매핑이 내장 기본값으로 fallback |
+| `bin/` | **진입점** | source 불가 (호환 래퍼도 bin/에 의존) |
+| `providers/` | **직접 참조** | AI 호출 불가 |
+| `scripts/commands/` | **직접 참조** | 명령어 사용 불가 |
+| `scripts/lib/` | **직접 참조** | 유틸리티 함수 사용 불가 |
 | `prompts/` | **직접 참조** | 파이프라인 동작 안 함 |
+| `config/` | **직접 참조** | label 매핑이 내장 기본값으로 fallback |
 | `templates/` | **직접 참조** | 해당 템플릿 시나리오 동작 안 함 |
-| `guides/` | 참조 안 함 | 영향 없음 |
-| `hooks/git/` | 참조 안 함 | 커밋 메시지 검증만 해제 |
-| `hooks/claude/` | 참조 안 함 | Claude Hook 자동화만 해제 |
-| `scripts/claude/` | 참조 안 함 | alias만 사용 불가, 수동 명령어는 동작 |
+| `hooks/` | 참조 안 함 | Hook 자동화만 해제 |
+| `docs/` | 참조 안 함 | 영향 없음 |
+| `agents/` | 미사용 (예정) | 영향 없음 |
+| `schemas/` | 미사용 (예정) | 영향 없음 |
+| `tests/` | 참조 안 함 | 테스트만 실행 불가 |
 | `workflows/` | 참조 안 함 | CI/CD 자동화만 해제 |
 
 > 의존 방향은 항상 단방향. 사용하지 않는 AI 도구의 디렉토리는 삭제해도 다른 기능에 영향 없음.
@@ -193,6 +209,15 @@ git subtree add --prefix=ax-driven https://github.com/team-b/ax-driven-backend.g
 ```
 
 > 명령어(`ai-commit` 등)는 동일하지만, 프롬프트 내용은 프로젝트마다 다를 수 있다.
+
+<br/>
+
+## 🔌 Provider 전략
+
+현재 기본 Provider는 **Claude Code** (`claude --print`)이다.
+Provider 전용 로직은 `providers/claude.sh`에 격리되어 있으며, 나머지 스크립트는 provider에 의존하지 않는다.
+
+향후 다른 AI Provider(Codex, Gemini 등)를 추가할 때는 `providers/` 디렉토리에 동일한 인터페이스의 셸 스크립트를 추가하면 된다.
 
 <br/>
 
