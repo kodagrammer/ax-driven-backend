@@ -70,5 +70,11 @@
       "enum": ["low", "medium", "high"],
       "description": "How reliable the triage model considers its own routing decision."
     }
+  },
+  "if": {
+    "properties": { "has_must_fix": { "const": true } }
+  },
+  "then": {
+    "properties": { "review_mode": { "enum": ["fast", "deep"] } }
   }
 }

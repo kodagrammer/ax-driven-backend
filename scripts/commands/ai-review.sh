@@ -9,9 +9,10 @@
 # 사용법: _ax_review_triage <ax_root> <base>
 # stdout: triage JSON, stderr: 에러/토큰 로그
 _ax_review_triage() {
-  _rt_root="$1"
-  _rt_base="$2"
-  _rt_tmp="${_rt_root}/tmp"
+  local _rt_root="$1"
+  local _rt_base="$2"
+  local _rt_tmp="${_rt_root}/tmp"
+  local _rt_json _rt_rc
 
   _AX_TOKEN_FILE="$_rt_tmp/triage-token.log"
   export _AX_TOKEN_FILE
@@ -56,6 +57,7 @@ _ax_require_jq_for_review() {
 # 사용법: echo "$json" | _ax_review_validate
 # 종료코드: 0=유효, 1=무효 (stderr에 사유 출력)
 _ax_review_validate() {
+  local _rv_json _rv_err
   _rv_json=$(cat)
 
   # JSON 파싱 가능한지
@@ -88,7 +90,8 @@ _ax_review_validate() {
 # 실행 계획 마크다운 출력
 # 사용법: echo "$json" | _ax_review_plan <action_label>
 _ax_review_plan() {
-  _rp_action="$1"
+  local _rp_action="$1"
+  local _rp_json _rp_risk _rp_mode _rp_must _rp_subs _rp_conf _rp_cats _rp_reason
   _rp_json=$(cat)
 
   _rp_risk=$(printf '%s\n' "$_rp_json" | jq -r '.risk_level')
@@ -121,11 +124,12 @@ _ax_review_plan() {
 # 기존 리뷰 실행 (tier 파라미터화)
 # 사용법: _ax_review_exec <ax_root> <base> <tier>
 _ax_review_exec() {
-  _re_root="$1"
-  _re_base="$2"
-  _re_tier="$3"
-  _re_tmp="${_re_root}/tmp"
-  _re_file="$_re_tmp/review.md"
+  local _re_root="$1"
+  local _re_base="$2"
+  local _re_tier="$3"
+  local _re_tmp="${_re_root}/tmp"
+  local _re_file="$_re_tmp/review.md"
+  local _re_rc
 
   echo "[ax-driven] AI 리뷰 생성 중... (tier: $_re_tier)"
   _AX_TOKEN_FILE="$_re_tmp/token.log"
@@ -173,9 +177,11 @@ _ax_review_tier() {
 }
 
 ai-review() {
-  _ax_root="$_AX_ROOT"
-  _tmp="${_ax_root}/tmp"
-  _json_mode=false
+  local _ax_root="$_AX_ROOT"
+  local _tmp="${_ax_root}/tmp"
+  local _json_mode=false
+  local _base _review_file _triage_json _triage_failed
+  local _review_mode _risk_level _tier
 
   # --- 인자 파싱 ---
   _base=""
@@ -232,14 +238,24 @@ ai-review() {
 
   # --- triage ---
   echo "[ax-driven] triage 분석 중..." >&2
+  _triage_failed=false
   _triage_json=$(_ax_review_triage "$_ax_root" "$_base")
   if [ $? -ne 0 ]; then
-    return 1
+    _triage_failed=true
   fi
 
   # JSON 검증
-  _triage_json=$(printf '%s\n' "$_triage_json" | _ax_review_validate)
-  if [ $? -ne 0 ]; then
+  if [ "$_triage_failed" = false ]; then
+    _triage_json=$(printf '%s\n' "$_triage_json" | _ax_review_validate)
+    if [ $? -ne 0 ]; then
+      _triage_failed=true
+    fi
+  fi
+
+  # triage 실패 시 fallback: skip (리뷰 실행하지 않음)
+  if [ "$_triage_failed" = true ]; then
+    echo "[WARN] triage 실패 — fallback: skip. 리뷰를 건너뜁니다." >&2
+    echo "  수동 리뷰가 필요하면 diff를 직접 확인하세요: git diff ${_base}...HEAD" >&2
     return 1
   fi
 
