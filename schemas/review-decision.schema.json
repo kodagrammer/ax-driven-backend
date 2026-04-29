@@ -17,8 +17,8 @@
   "properties": {
     "risk_level": {
       "type": "string",
-      "enum": ["low", "medium", "high"],
-      "description": "Overall risk assessment of the diff."
+      "enum": ["none", "low", "medium", "high"],
+      "description": "Overall risk assessment of the diff. none = no meaningful change detected."
     },
     "review_mode": {
       "type": "string",
