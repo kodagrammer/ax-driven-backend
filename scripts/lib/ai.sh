@@ -28,4 +28,11 @@ _ax_ai() {
   [ -n "${1:-}" ] && shift
 
   _ax_provider_call "$_ai_timeout" "$_ai_tier" "$@"
+  _ai_rc=$?
+
+  if [ $_ai_rc -eq 124 ]; then
+    echo "[ERROR] AI 요청 timeout (${_ai_timeout}s 초과, tier: $_ai_tier). diff가 너무 크거나 네트워크가 느립니다." >&2
+  fi
+
+  return $_ai_rc
 }

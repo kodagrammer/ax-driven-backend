@@ -19,9 +19,10 @@
 |------|----------|------|
 | Git | 필수 | 버전 관리, diff 추출 |
 | Claude Code | 필수 | AI 파이프라인 실행 (`claude --print`) |
+| jq | 필수 | AI 응답 JSON 파싱 및 검증 (`ai-review`) |
 | GitHub CLI (`gh`) | 선택 | 이슈 생성 (GitHub 전용) |
 
-> Git과 Claude Code만 있으면 핵심 기능(커밋, 리뷰)은 어떤 플랫폼에서든 동작한다.
+> Git, Claude Code, jq가 있으면 핵심 기능(커밋, 리뷰)은 어떤 플랫폼에서든 동작한다.
 > **Windows는 WSL(Windows Subsystem for Linux) 환경에서만 동작한다.**
 
 <br/>
