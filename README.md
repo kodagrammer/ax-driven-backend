@@ -71,13 +71,13 @@ echo 'source /absolute/path/to/ax-driven/bin/ax-driven.sh' >> ~/.zshrc
 
 #### 명령어 목록
 
-| 명령어 | 하는 일 | 사용 모델 |
-|--------|---------|----------|
-| `ai-branch -i <이슈링크or이슈내용> [--from <브랜치명>]` | 이슈 기반 브랜치명 생성 → 확인 → 생성 | haiku |
-| `ai-commit` | staged diff → 커밋 메시지 생성 → 편집기 확인 → 커밋 | sonnet |
-| `ai-review [base]` | diff → 아키텍처 리뷰 생성 → 편집기 확인 | opus |
-| `ai-issue` | 명세서 → 미리보기 → GitHub 이슈 생성 | - (AI 미사용) |
-| `_ax_done [name]` | 임시 파일 정리 (`commit`, `review`, `issue`, `spec` 또는 전체) | - |
+| 명령어 | 하는 일 | AI tier | Claude 모델 |
+|--------|---------|---------|-------------|
+| `ai-branch -i <이슈링크or이슈내용> [--from <브랜치명>]` | 이슈 기반 브랜치명 생성 → 확인 → 생성 | low | haiku |
+| `ai-commit` | staged diff → 커밋 메시지 생성 → 편집기 확인 → 커밋 | standard | sonnet |
+| `ai-review [base]` | diff → 아키텍처 리뷰 생성 → 편집기 확인 | high | opus |
+| `ai-issue` | 명세서 → 미리보기 → GitHub 이슈 생성 | - | - (AI 미사용) |
+| `_ax_done [name]` | 임시 파일 정리 (`commit`, `review`, `issue`, `spec` 또는 전체) | - | - |
 
 #### 사용 예시
 

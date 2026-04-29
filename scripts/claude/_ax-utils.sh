@@ -4,4 +4,5 @@
 
 _ax_wrapper_dir="$(cd "$(dirname "${BASH_SOURCE:-$0}")" && pwd)"
 . "${_ax_wrapper_dir}/../lib/utils.sh"
+. "${_ax_wrapper_dir}/../lib/ai.sh"
 . "${_ax_wrapper_dir}/../../providers/claude.sh"

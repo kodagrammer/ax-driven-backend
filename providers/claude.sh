@@ -9,6 +9,24 @@
 #   종료코드: 0=성공, 비정상=실패
 #   부가:   $_AX_TOKEN_FILE 설정 시 토큰 사용량 기록
 
+# tier → Claude 모델 매핑
+_ax_provider_call() {
+  _pc_timeout="$1"; shift
+  _pc_tier="$1"; shift
+
+  case "$_pc_tier" in
+    low)      _pc_model="haiku" ;;
+    standard) _pc_model="sonnet" ;;
+    high)     _pc_model="opus" ;;
+    *)
+      echo "[Error] 알 수 없는 tier: $_pc_tier" >&2
+      return 1
+      ;;
+  esac
+
+  _ax_claude "$_pc_timeout" --model "$_pc_model" "$@"
+}
+
 _ax_claude() {
   _ac_secs="$1"; shift
 

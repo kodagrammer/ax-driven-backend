@@ -29,18 +29,19 @@
 
 <br/>
 
-## 🔧 모델 선택
+## 🔧 AI tier와 모델 선택
 
-수동 파이프라인에서는 `--model` 옵션으로 모델을 지정할 수 있다. 생략하면 Claude Code 기본 모델이 사용된다.
+단축 명령어는 작업 특성에 따라 AI tier(`low`/`standard`/`high`)를 사용한다. tier별 모델 매핑은 provider가 결정하며, 현재 기본 provider는 Claude이다.
 
-| 작업 | 권장 모델 | 이유 |
-|------|----------|------|
-| 커밋 메시지 생성 | sonnet | diff 분석 + 컨벤션 적용 |
-| PR 아키텍처 리뷰 | opus | 코드 맥락을 깊이 읽어야 하는 작업 |
-| 이슈 생성 | - (AI 미사용) | 명세서 → gh CLI 직접 실행 |
-| 브랜치명 생성 | haiku | 이슈 제목 → 브랜치명 단순 변환 |
+| 작업 | AI tier | Claude 모델 | 이유 |
+|------|---------|-------------|------|
+| 브랜치명 생성 | low | haiku | 이슈 제목 → 브랜치명 단순 변환 |
+| 커밋 메시지 생성 | standard | sonnet | diff 분석 + 컨벤션 적용 |
+| PR 아키텍처 리뷰 | high | opus | 코드 맥락을 깊이 읽어야 하는 작업 |
+| 이슈 생성 | - | - (AI 미사용) | 명세서 → gh CLI 직접 실행 |
 
-> 단축 명령어(`ai-commit` 등)는 위 모델이 이미 내장되어 있다.
+> 수동 파이프라인에서는 `--model` 옵션으로 모델을 직접 지정할 수 있다. 생략하면 Claude Code 기본 모델이 사용된다.
+> tier별 timeout 및 모델 매핑은 `scripts/lib/ai.sh`와 `providers/claude.sh`에서 관리한다.
 
 <br/>
 

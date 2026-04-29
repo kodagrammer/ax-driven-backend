@@ -20,6 +20,7 @@ _ax_bin_dir="$(cd "$(dirname "${BASH_SOURCE:-$0}")" && pwd)"
 _AX_ROOT="$(cd "${_ax_bin_dir}/.." && pwd)"
 
 . "${_AX_ROOT}/scripts/lib/utils.sh"
+. "${_AX_ROOT}/scripts/lib/ai.sh"
 . "${_AX_ROOT}/providers/claude.sh"
 . "${_AX_ROOT}/scripts/commands/ai-commit.sh"
 . "${_AX_ROOT}/scripts/commands/ai-branch.sh"

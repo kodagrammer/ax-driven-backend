@@ -62,7 +62,7 @@ Return exactly one JSON object:
 {
   "risk_level": "<none|low|medium|high>",
   "review_mode": "<skip|fast|deep>",
-  "has_must_fix": "<true|false>",
+  "has_must_fix": true|false,
   "subagents": ["<if needed>"],
   "categories": ["<detected>"],
   "reason": "<1-2 sentences, max 500 chars>",
