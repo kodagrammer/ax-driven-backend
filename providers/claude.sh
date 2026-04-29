@@ -3,14 +3,35 @@
 # claude --print 래퍼. 다른 provider 추가 시 이 파일과 동일한 인터페이스로 작성한다.
 #
 # 인터페이스 계약:
-#   함수명: _ax_claude (provider별로 _ax_<name>)
-#   입력:   stdin=프롬프트, $1=타임아웃(초), $2~=provider CLI 인자
+#   함수명: _ax_provider_call
+#   입력:   stdin=프롬프트, $1=tier(low|standard|high), $2~=passthrough 인자
 #   출력:   stdout=AI 응답 본문, stderr=에러 메시지
 #   종료코드: 0=성공, 비정상=실패
+#   timeout: _AX_CURRENT_TIMEOUT 환경변수 (_ax_ai가 설정)
 #   부가:   $_AX_TOKEN_FILE 설정 시 토큰 사용량 기록
 
+# tier → Claude 모델 매핑
+_ax_provider_call() {
+  local _pc_tier="$1"; shift
+  local _pc_model
+
+  case "$_pc_tier" in
+    low)      _pc_model="haiku" ;;
+    standard) _pc_model="sonnet" ;;
+    high)     _pc_model="opus" ;;
+    *)
+      echo "[Error] 알 수 없는 tier: $_pc_tier" >&2
+      return 1
+      ;;
+  esac
+
+  _ax_claude --model "$_pc_model" "$@"
+}
+
 _ax_claude() {
-  _ac_secs="$1"; shift
+  local _ac_secs="${_AX_CURRENT_TIMEOUT:-90}"
+  local _ac_json _ac_rc _ac_err _ac_result
+  local _ac_model _ac_prev _ac_a
 
   # jq 미설치 시 일반 --print로 fallback (에러는 stderr로 자연 전달)
   if ! command -v jq >/dev/null 2>&1; then

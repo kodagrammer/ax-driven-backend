@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ax-driven.local/schemas/review-decision.schema.json",
+  "title": "AI Review Triage Decision",
+  "description": "Routing contract for ai-review orchestration. Triage model outputs this JSON to drive review depth, model selection, and subagent dispatch.",
+  "type": "object",
+  "required": [
+    "risk_level",
+    "review_mode",
+    "has_must_fix",
+    "subagents",
+    "categories",
+    "reason",
+    "confidence"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "risk_level": {
+      "type": "string",
+      "enum": ["none", "low", "medium", "high"],
+      "description": "Overall risk assessment of the diff. none = no meaningful change detected."
+    },
+    "review_mode": {
+      "type": "string",
+      "enum": ["skip", "fast", "deep"],
+      "description": "Review depth to apply. skip = no review needed, fast = lightweight check, deep = thorough analysis."
+    },
+    "has_must_fix": {
+      "type": "boolean",
+      "description": "Whether the triage believes there is at least one must-fix issue before merge."
+    },
+    "subagents": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["security", "test", "architecture"]
+      },
+      "uniqueItems": true,
+      "description": "Recommended specialized reviewer subagents for later orchestration. Empty array means none required."
+    },
+    "categories": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "logic",
+          "test",
+          "security",
+          "architecture",
+          "docs",
+          "config",
+          "dependency",
+          "refactor",
+          "performance",
+          "style",
+          "unknown"
+        ]
+      },
+      "uniqueItems": true,
+      "description": "Change categories detected in the diff."
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500,
+      "description": "Short explanation of why this risk level and review mode were chosen."
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["low", "medium", "high"],
+      "description": "How reliable the triage model considers its own routing decision."
+    }
+  },
+  "if": {
+    "properties": { "has_must_fix": { "const": true } }
+  },
+  "then": {
+    "properties": { "review_mode": { "enum": ["fast", "deep"] } }
+  }
+}
