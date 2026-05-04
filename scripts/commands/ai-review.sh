@@ -2,21 +2,66 @@
 # _ai-review.sh — PR 아키텍처 리뷰 (orchestration-first)
 # ax-driven.sh에서 source됨. 직접 실행하지 않는다.
 #
-# 흐름: diff 수집 → triage → JSON 검증 → 실행 계획 출력 → review_mode 분기
+# 흐름: diff mode 선택 → diff 수집 → triage → JSON 검증 → 실행 계획 출력 → review_mode 분기
+# diff modes: staged (default), --all, --branch [base]
 # --json 옵션: triage Decision JSON만 출력하고 종료
 
+# diff mode별 git diff 실행
+# 사용법: _ax_review_diff <mode> <base> [extra args...]
+# mode: staged | all | branch
+_ax_review_diff() {
+  local _rd_mode="$1" _rd_base="$2"
+  shift 2
+  case "$_rd_mode" in
+    all)    git diff HEAD "$@" ;;
+    branch) git diff "${_rd_base}...HEAD" "$@" ;;
+    *)      git diff --cached "$@" ;;
+  esac
+}
+
+# help 출력
+_ax_review_help() {
+  cat <<'HELP'
+Usage:
+  ai-review [options]
+
+Options:
+  --all
+    Review all local changes (staged + unstaged)
+
+  --branch [base]
+    Review branch diff against base (default: main)
+
+  --json
+    Output triage Decision JSON only
+
+  --help, -h
+    Show this help message
+
+Description:
+  Default behavior reviews staged changes only.
+
+Examples:
+  ai-review
+  ai-review --all
+  ai-review --branch
+  ai-review --branch develop
+HELP
+}
+
 # triage 실행: diff를 분류하여 Decision JSON 반환
-# 사용법: _ax_review_triage <ax_root> <base>
+# 사용법: _ax_review_triage <ax_root> <mode> <base>
 # stdout: triage JSON, stderr: 에러/토큰 로그
 _ax_review_triage() {
   local _rt_root="$1"
-  local _rt_base="$2"
+  local _rt_mode="$2"
+  local _rt_base="$3"
   local _rt_tmp="${_rt_root}/tmp"
   local _rt_json _rt_rc
 
   _AX_TOKEN_FILE="$_rt_tmp/triage-token.log"
   export _AX_TOKEN_FILE
-  _rt_json=$({ cat "${_rt_root}/prompts/review-triage.md"; echo; echo "## Changed Files"; git diff "$_rt_base...HEAD" --stat; echo; echo "## Diff Headers"; git diff "$_rt_base...HEAD" | grep -E '^(diff --git|@@|[+-]{3} )'; } \
+  _rt_json=$({ cat "${_rt_root}/prompts/review-triage.md"; echo; echo "## Changed Files"; _ax_review_diff "$_rt_mode" "$_rt_base" --stat; echo; echo "## Diff Headers"; _ax_review_diff "$_rt_mode" "$_rt_base" | grep -E '^(diff --git|@@|[+-]{3} )'; } \
     | _ax_ai low 2>"$_rt_tmp/triage-error.log")
   _rt_rc=$?
   unset _AX_TOKEN_FILE
@@ -122,11 +167,12 @@ _ax_review_plan() {
 }
 
 # 기존 리뷰 실행 (tier 파라미터화)
-# 사용법: _ax_review_exec <ax_root> <base> <tier>
+# 사용법: _ax_review_exec <ax_root> <mode> <base> <tier>
 _ax_review_exec() {
   local _re_root="$1"
-  local _re_base="$2"
-  local _re_tier="$3"
+  local _re_mode="$2"
+  local _re_base="$3"
+  local _re_tier="$4"
   local _re_tmp="${_re_root}/tmp"
   local _re_file="$_re_tmp/review.md"
   local _re_rc
@@ -134,7 +180,7 @@ _ax_review_exec() {
   echo "[ax-driven] AI 리뷰 생성 중... (tier: $_re_tier)"
   _AX_TOKEN_FILE="$_re_tmp/token.log"
   export _AX_TOKEN_FILE
-  { cat "${_re_root}/prompts/03-pr-reviewer.md"; git diff "$_re_base...HEAD"; } \
+  { cat "${_re_root}/prompts/03-pr-reviewer.md"; _ax_review_diff "$_re_mode" "$_re_base"; } \
     | _ax_ai "$_re_tier" 300 > "$_re_file" 2>"$_re_tmp/error.log"
   _re_rc=$?
   unset _AX_TOKEN_FILE
@@ -180,44 +226,77 @@ ai-review() {
   local _ax_root="$_AX_ROOT"
   local _tmp="${_ax_root}/tmp"
   local _json_mode=false
-  local _base _review_file _triage_json _triage_failed
+  local _diff_mode="staged" _branch_base=""
+  local _review_file _triage_json _triage_failed
   local _review_mode _risk_level _tier
 
   # --- 인자 파싱 ---
-  _base=""
   while [ $# -gt 0 ]; do
     case "$1" in
+      --help|-h)
+        _ax_review_help
+        return 0
+        ;;
       --json)
         _json_mode=true
+        ;;
+      --all)
+        if [ "$_diff_mode" != "staged" ]; then
+          echo "[Error] --all과 --branch는 동시에 사용할 수 없습니다." >&2
+          return 1
+        fi
+        _diff_mode="all"
+        ;;
+      --branch)
+        if [ "$_diff_mode" != "staged" ]; then
+          echo "[Error] --all과 --branch는 동시에 사용할 수 없습니다." >&2
+          return 1
+        fi
+        _diff_mode="branch"
+        if [ $# -gt 1 ] && case "$2" in --*) false ;; *) true ;; esac; then
+          _branch_base="$2"
+          shift
+        fi
         ;;
       --*)
         echo "[Error] 알 수 없는 옵션: $1" >&2
         return 1
         ;;
       *)
-        if [ -z "$_base" ]; then
-          _base="$1"
-        else
-          echo "[Error] 인자가 너무 많습니다: $1" >&2
-          return 1
-        fi
+        echo "[Error] 알 수 없는 인자: $1" >&2
+        return 1
         ;;
     esac
     shift
   done
-  _base="${_base:-main}"
+
+  _branch_base="${_branch_base:-main}"
   _review_file="$_tmp/review.md"
 
-  # _base 입력값 검증 (명령 주입 방지 — 브랜치명 허용 문자만 통과)
-  case "$_base" in
-    *[!a-zA-Z0-9/_.-]*)
-      echo "[Error] 유효하지 않은 브랜치명입니다: $_base" >&2
-      return 1 ;;
-  esac
+  # --branch base 입력값 검증 (명령 주입 방지)
+  if [ "$_diff_mode" = "branch" ]; then
+    case "$_branch_base" in
+      *[!a-zA-Z0-9/_.-]*)
+        echo "[Error] 유효하지 않은 브랜치명입니다: $_branch_base" >&2
+        return 1 ;;
+    esac
+  fi
 
-  # diff 확인
-  if [ -z "$(git diff "${_base}...HEAD" --name-only)" ]; then
-    echo "[ERROR] ${_base} 브랜치 대비 변경 사항이 없습니다." >&2
+  # diff 확인 — 모드별 안내 메시지
+  if [ -z "$(_ax_review_diff "$_diff_mode" "$_branch_base" --name-only)" ]; then
+    case "$_diff_mode" in
+      staged)
+        echo "No staged changes found." >&2
+        echo "Stage files first with: git add <path>" >&2
+        echo "Or use --all to review unstaged changes." >&2
+        ;;
+      all)
+        echo "No local changes found." >&2
+        ;;
+      branch)
+        echo "No branch changes found against ${_branch_base}." >&2
+        ;;
+    esac
     return 1
   fi
 
@@ -239,7 +318,7 @@ ai-review() {
   # --- triage ---
   echo "[ax-driven] triage 분석 중..." >&2
   _triage_failed=false
-  _triage_json=$(_ax_review_triage "$_ax_root" "$_base")
+  _triage_json=$(_ax_review_triage "$_ax_root" "$_diff_mode" "$_branch_base")
   if [ $? -ne 0 ]; then
     _triage_failed=true
   fi
@@ -255,7 +334,7 @@ ai-review() {
   # triage 실패 시 fallback: skip (리뷰 실행하지 않음)
   if [ "$_triage_failed" = true ]; then
     echo "[WARN] triage 실패 — fallback: skip. 리뷰를 건너뜁니다." >&2
-    echo "  수동 리뷰가 필요하면 diff를 직접 확인하세요: git diff ${_base}...HEAD" >&2
+    echo "  수동 리뷰가 필요하면 diff를 직접 확인하세요." >&2
     return 1
   fi
 
@@ -282,5 +361,5 @@ ai-review() {
   echo "  편집기에서 리뷰 결과를 확인해주세요."
   echo "  리뷰 반영 후 _ax_done review 로 정리해주세요."
   echo ""
-  _ax_review_exec "$_ax_root" "$_base" "$_tier"
+  _ax_review_exec "$_ax_root" "$_diff_mode" "$_branch_base" "$_tier"
 }
