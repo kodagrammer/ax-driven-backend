@@ -133,18 +133,21 @@ _ax_review_validate() {
 }
 
 # 실행 계획 마크다운 출력
-# 사용법: echo "$json" | _ax_review_plan <action_label>
+# 사용법: echo "$execution_plan_json" | _ax_review_plan <action_label>
 _ax_review_plan() {
   local _rp_action="$1"
-  local _rp_json _rp_risk _rp_mode _rp_must _rp_subs _rp_conf _rp_cats _rp_reason
+  local _rp_json
   _rp_json=$(cat)
 
+  local _rp_risk _rp_mode _rp_eff _rp_tier _rp_must _rp_subs _rp_conf _rp_preason _rp_reason
   _rp_risk=$(printf '%s\n' "$_rp_json" | jq -r '.risk_level')
   _rp_mode=$(printf '%s\n' "$_rp_json" | jq -r '.review_mode')
+  _rp_eff=$(printf '%s\n' "$_rp_json" | jq -r '.effective_review_mode')
+  _rp_tier=$(printf '%s\n' "$_rp_json" | jq -r '.tier')
   _rp_must=$(printf '%s\n' "$_rp_json" | jq -r 'if .has_must_fix then "yes" else "no" end')
   _rp_subs=$(printf '%s\n' "$_rp_json" | jq -r '(.subagents // []) | if length > 0 then join(", ") else "none" end')
   _rp_conf=$(printf '%s\n' "$_rp_json" | jq -r '.confidence')
-  _rp_cats=$(printf '%s\n' "$_rp_json" | jq -r '(.categories // []) | if length > 0 then join(", ") else "none" end')
+  _rp_preason=$(printf '%s\n' "$_rp_json" | jq -r '.promotion_reason // ""')
   _rp_reason=$(printf '%s\n' "$_rp_json" | jq -r '.reason // "N/A"')
 
   echo ""
@@ -153,10 +156,14 @@ _ax_review_plan() {
   echo "## Decision"
   echo "- Risk Level: $_rp_risk"
   echo "- Review Mode: $_rp_mode"
+  echo "- Effective Review Mode: $_rp_eff"
+  echo "- Tier: $_rp_tier"
   echo "- Must Fix: $_rp_must"
-  echo "- Subagents: $_rp_subs"
-  echo "- Categories: $_rp_cats"
+  echo "- Planned Specialized Checks: $_rp_subs"
   echo "- Confidence: $_rp_conf"
+  if [ -n "$_rp_preason" ]; then
+    echo "- Promotion Reason: $_rp_preason"
+  fi
   echo ""
   echo "## Reason"
   echo "$_rp_reason"
@@ -166,21 +173,43 @@ _ax_review_plan() {
   echo ""
 }
 
-# 기존 리뷰 실행 (tier 파라미터화)
-# 사용법: _ax_review_exec <ax_root> <mode> <base> <tier>
+# prompt 선택: review_mode → prompt 파일 경로
+# 사용법: _ax_review_prompt <ax_root> <effective_review_mode>
+_ax_review_prompt() {
+  local _rpr_root="$1" _rpr_mode="$2"
+  case "$_rpr_mode" in
+    fast) echo "${_rpr_root}/prompts/review-fast.md" ;;
+    deep) echo "${_rpr_root}/prompts/review-deep.md" ;;
+    *)    echo "[ERROR] unknown review mode: $_rpr_mode" >&2; return 1 ;;
+  esac
+}
+
+# 리뷰 실행 (tier + prompt 파라미터화)
+# 사용법: _ax_review_exec <ax_root> <mode> <base> <tier> <effective_review_mode>
 _ax_review_exec() {
   local _re_root="$1"
   local _re_mode="$2"
   local _re_base="$3"
   local _re_tier="$4"
+  local _re_eff="$5"
   local _re_tmp="${_re_root}/tmp"
   local _re_file="$_re_tmp/review.md"
-  local _re_rc
+  local _re_prompt _re_rc
 
-  echo "[ax-driven] AI 리뷰 생성 중... (tier: $_re_tier)"
+  _re_prompt=$(_ax_review_prompt "$_re_root" "$_re_eff")
+  if [ $? -ne 0 ] || [ -z "$_re_prompt" ]; then
+    echo "[ERROR] prompt 선택 실패: mode=$_re_eff" >&2
+    return 1
+  fi
+  if [ ! -f "$_re_prompt" ]; then
+    echo "[ERROR] prompt 파일 없음: $_re_prompt" >&2
+    return 1
+  fi
+
+  echo "[ax-driven] AI 리뷰 생성 중... (tier: $_re_tier, prompt: $(basename "$_re_prompt"))"
   _AX_TOKEN_FILE="$_re_tmp/token.log"
   export _AX_TOKEN_FILE
-  { cat "${_re_root}/prompts/03-pr-reviewer.md"; _ax_review_diff "$_re_mode" "$_re_base"; } \
+  { cat "$_re_prompt"; _ax_review_diff "$_re_mode" "$_re_base"; } \
     | _ax_ai "$_re_tier" 300 > "$_re_file" 2>"$_re_tmp/error.log"
   _re_rc=$?
   unset _AX_TOKEN_FILE
@@ -207,19 +236,52 @@ _ax_review_exec() {
   ${EDITOR:-vi} "$_re_file"
 }
 
-# review_mode + risk_level → 리뷰 tier 결정
-# 사용법: _ax_review_tier <review_mode> <risk_level>
-_ax_review_tier() {
-  case "$1" in
-    fast) echo "low" ;;
+# triage JSON → execution plan JSON
+# stdin: validated triage JSON
+# stdout: execution plan JSON
+_ax_review_build_execution_plan() {
+  local _bp_json _bp_mode _bp_conf _bp_must _bp_risk
+  local _bp_eff _bp_promoted=false _bp_reason=""
+  _bp_json=$(cat)
+
+  _bp_mode=$(printf '%s\n' "$_bp_json" | jq -r '.review_mode')
+  _bp_conf=$(printf '%s\n' "$_bp_json" | jq -r '.confidence')
+  _bp_must=$(printf '%s\n' "$_bp_json" | jq -r '.has_must_fix')
+  _bp_risk=$(printf '%s\n' "$_bp_json" | jq -r '.risk_level')
+
+  # promotion 로직 (이미 deep이면 승격 불필요)
+  _bp_eff="$_bp_mode"
+  if [ "$_bp_mode" != "skip" ] && [ "$_bp_mode" != "deep" ]; then
+    if [ "$_bp_must" = "true" ]; then
+      _bp_eff="deep"
+      _bp_promoted=true
+      _bp_reason="has_must_fix is true"
+    elif [ "$_bp_conf" = "low" ]; then
+      _bp_eff="deep"
+      _bp_promoted=true
+      _bp_reason="confidence is low"
+    fi
+  fi
+
+  # tier 결정
+  local _bp_tier="none"
+  case "$_bp_eff" in
+    fast) _bp_tier="low" ;;
     deep)
-      case "$2" in
-        high) echo "high" ;;
-        *)    echo "standard" ;;
+      case "$_bp_risk" in
+        high) _bp_tier="high" ;;
+        *)    _bp_tier="standard" ;;
       esac
       ;;
-    *) echo "none" ;;
   esac
+
+  # execution plan JSON 생성
+  printf '%s\n' "$_bp_json" | jq \
+    --arg eff "$_bp_eff" \
+    --arg tier "$_bp_tier" \
+    --argjson promoted "$_bp_promoted" \
+    --arg reason "$_bp_reason" \
+    '. + {effective_review_mode: $eff, tier: $tier, promoted: $promoted, promotion_reason: $reason}'
 }
 
 ai-review() {
@@ -228,7 +290,6 @@ ai-review() {
   local _json_mode=false
   local _diff_mode="staged" _branch_base=""
   local _review_file _triage_json _triage_failed
-  local _review_mode _risk_level _tier
 
   # --- 인자 파싱 ---
   while [ $# -gt 0 ]; do
@@ -344,22 +405,27 @@ ai-review() {
     return 0
   fi
 
-  # --- routing ---
-  _review_mode=$(printf '%s\n' "$_triage_json" | jq -r '.review_mode')
-  _risk_level=$(printf '%s\n' "$_triage_json" | jq -r '.risk_level')
-  _tier=$(_ax_review_tier "$_review_mode" "$_risk_level")
+  # --- execution plan ---
+  local _exec_plan _eff_mode _tier
+  _exec_plan=$(printf '%s\n' "$_triage_json" | _ax_review_build_execution_plan)
+  if [ $? -ne 0 ] || [ -z "$_exec_plan" ]; then
+    echo "[ERROR] execution plan 생성 실패" >&2
+    return 1
+  fi
+  _eff_mode=$(printf '%s\n' "$_exec_plan" | jq -r '.effective_review_mode')
+  _tier=$(printf '%s\n' "$_exec_plan" | jq -r '.tier')
 
-  # skip → 실행 계획만 출력하고 종료
-  if [ "$_review_mode" = "skip" ]; then
-    printf '%s\n' "$_triage_json" | _ax_review_plan "Skip — 리뷰가 필요하지 않습니다."
+  # skip → 안내 출력 후 종료
+  if [ "$_eff_mode" = "skip" ]; then
+    printf '%s\n' "$_exec_plan" | _ax_review_plan "No meaningful review target detected. Review skipped."
     return 0
   fi
 
   # fast/deep → 실행 계획 출력 후 리뷰 실행
-  printf '%s\n' "$_triage_json" | _ax_review_plan "Running ${_review_mode} review... (tier: $_tier)"
+  printf '%s\n' "$_exec_plan" | _ax_review_plan "Running ${_eff_mode} review... (tier: $_tier)"
   echo ""
   echo "  편집기에서 리뷰 결과를 확인해주세요."
   echo "  리뷰 반영 후 _ax_done review 로 정리해주세요."
   echo ""
-  _ax_review_exec "$_ax_root" "$_diff_mode" "$_branch_base" "$_tier"
+  _ax_review_exec "$_ax_root" "$_diff_mode" "$_branch_base" "$_tier" "$_eff_mode"
 }

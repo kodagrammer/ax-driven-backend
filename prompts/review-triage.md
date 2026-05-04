@@ -18,8 +18,8 @@ If a change matches both medium and high criteria, classify as high.
 
 ### review_mode
 - skip: risk_level is none, no review needed
-- fast: low-risk localized change
-- deep: medium/high risk, or any subagent recommended
+- fast: low-risk localized change, or medium-risk without must_fix
+- deep: high risk, medium-risk with must_fix, or any subagent recommended
 
 ### subagents
 - security: auth, secrets, tokens, credentials, eval, curl, wget, rm, chmod, chown, shell execution, unsafe input

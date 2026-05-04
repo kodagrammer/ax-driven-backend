@@ -38,26 +38,30 @@ Limit:
 
 ## Output Format
 
+Write in Korean. Use the following structure:
+
 ```md
 ## Must Fix
-- [file:line] issue → fix
+- `file:line` — 문제 설명
+  → 수정 방향
 
 ## Should Fix
-- [file:line] issue → fix
+- `file:line` — 문제 설명
+  → 수정 방향
 
 ## Approve Condition
-- Approve if no Must Fix exists.
+- Must Fix가 없으면 승인.
 ```
 
 If no issues:
 
 ```md
 ## Must Fix
-- None
+- 없음
 
 ## Should Fix
-- None
+- 없음
 
 ## Approve Condition
-- Approve.
+- 승인.
 ```

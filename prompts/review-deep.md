@@ -42,32 +42,36 @@ Limit:
 
 ## Output Format
 
+Write in Korean. Use the following structure:
+
 ```md
 ## Must Fix
-- [file:line] issue → fix
+- `file:line` — 문제 설명
+  → 수정 방향
 
 ## Should Fix
-- [file:line] issue → fix
+- `file:line` — 문제 설명
+  → 수정 방향
 
 ## Consider
-- structural suggestion only if directly supported by the diff
+- diff에서 직접 근거가 있는 구조적 제안만 기술
 
 ## Approve Condition
-- Required changes before merge.
+- 머지 전 반드시 해결해야 할 항목 목록.
 ```
 
 If no issues:
 
 ```md
 ## Must Fix
-- None
+- 없음
 
 ## Should Fix
-- None
+- 없음
 
 ## Consider
-- None
+- 없음
 
 ## Approve Condition
-- Approve.
+- 승인.
 ```
