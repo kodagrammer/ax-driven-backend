@@ -207,9 +207,22 @@ _ax_review_exec() {
   fi
 
   echo "[ax-driven] AI 리뷰 생성 중... (tier: $_re_tier, prompt: $(basename "$_re_prompt"))"
+
+  # prompt 내 {{DIFF}} placeholder를 실제 diff로 치환
+  local _re_diff_file="$_re_tmp/diff.tmp"
+  _ax_review_diff "$_re_mode" "$_re_base" > "$_re_diff_file"
+
+  local _re_input
+  if grep -q '{{DIFF}}' "$_re_prompt"; then
+    _re_input=$(sed -e "/{{DIFF}}/r $_re_diff_file" -e '/{{DIFF}}/d' "$_re_prompt")
+  else
+    _re_input=$(cat "$_re_prompt"; cat "$_re_diff_file")
+  fi
+  rm -f "$_re_diff_file"
+
   _AX_TOKEN_FILE="$_re_tmp/token.log"
   export _AX_TOKEN_FILE
-  { cat "$_re_prompt"; _ax_review_diff "$_re_mode" "$_re_base"; } \
+  printf '%s\n' "$_re_input" \
     | _ax_ai "$_re_tier" 300 > "$_re_file" 2>"$_re_tmp/error.log"
   _re_rc=$?
   unset _AX_TOKEN_FILE
@@ -249,17 +262,18 @@ _ax_review_build_execution_plan() {
   _bp_must=$(printf '%s\n' "$_bp_json" | jq -r '.has_must_fix')
   _bp_risk=$(printf '%s\n' "$_bp_json" | jq -r '.risk_level')
 
-  # promotion 로직 (이미 deep이면 승격 불필요)
+  # promotion 로직 (skip/deep은 대상 아님)
   _bp_eff="$_bp_mode"
   if [ "$_bp_mode" != "skip" ] && [ "$_bp_mode" != "deep" ]; then
     if [ "$_bp_must" = "true" ]; then
+      _bp_reason="must-fix risk detected"
+    fi
+    if [ "$_bp_conf" = "low" ]; then
+      _bp_reason="${_bp_reason:+${_bp_reason}; }confidence is low"
+    fi
+    if [ -n "$_bp_reason" ]; then
       _bp_eff="deep"
       _bp_promoted=true
-      _bp_reason="has_must_fix is true"
-    elif [ "$_bp_conf" = "low" ]; then
-      _bp_eff="deep"
-      _bp_promoted=true
-      _bp_reason="confidence is low"
     fi
   fi
 
@@ -415,9 +429,12 @@ ai-review() {
   _eff_mode=$(printf '%s\n' "$_exec_plan" | jq -r '.effective_review_mode')
   _tier=$(printf '%s\n' "$_exec_plan" | jq -r '.tier')
 
-  # skip → 안내 출력 후 종료
+  # skip → report 출력 후 안내 메시지
   if [ "$_eff_mode" = "skip" ]; then
-    printf '%s\n' "$_exec_plan" | _ax_review_plan "No meaningful review target detected. Review skipped."
+    printf '%s\n' "$_exec_plan" | _ax_review_plan "Skip"
+    echo ""
+    echo "No meaningful review target detected."
+    echo "Review skipped."
     return 0
   fi
 
