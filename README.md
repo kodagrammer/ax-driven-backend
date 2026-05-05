@@ -159,8 +159,8 @@ ax-driven/
 │   ├── lib/              # 공용 셸 유틸리티
 │   └── claude/           # 호환성 래퍼 (기존 경로 유지)
 ├── prompts/              # AI에게 전달하는 작업별 프롬프트
-├── agents/               # 역할 기반 에이전트 프롬프트 (예정)
-├── schemas/              # AI 출력물 JSON Schema 계약 (예정)
+├── agents/               # 역할 기반 subagent 프롬프트
+├── schemas/              # AI 출력물 JSON Schema 계약
 ├── templates/            # AI 출력물의 마크다운 포맷 정의
 ├── config/               # label 매핑 등 사용자 설정
 ├── hooks/
@@ -183,8 +183,8 @@ ax-driven/
 | `templates/` | **직접 참조** | 해당 템플릿 시나리오 동작 안 함 |
 | `hooks/` | 참조 안 함 | Hook 자동화만 해제 |
 | `docs/` | 참조 안 함 | 영향 없음 |
-| `agents/` | 미사용 (예정) | 영향 없음 |
-| `schemas/` | 미사용 (예정) | 영향 없음 |
+| `agents/` | **직접 참조** | subagent 리뷰 불가 (base review는 동작) |
+| `schemas/` | **직접 참조** | triage JSON 검증 불가 |
 | `tests/` | 참조 안 함 | 테스트만 실행 불가 |
 | `workflows/` | 참조 안 함 | CI/CD 자동화만 해제 |
 

@@ -13,6 +13,56 @@ _AX_TIMEOUT_LOW=30
 _AX_TIMEOUT_STANDARD=90
 _AX_TIMEOUT_HIGH=300
 
+# --- subagent dispatch ---
+# 사용법: _ax_dispatch <name> <tier>
+#   name: subagent 이름 (security, test, architecture)
+#   tier: low | standard | high
+#   stdin으로 diff를 받아 name→file 변환 후 provider의 _ax_provider_dispatch로 전달한다.
+#   timeout은 tier에 맞게 설정하여 provider에 전달.
+#
+# 의존: _ax_provider_dispatch (providers/*.sh에서 정의)
+_ax_dispatch() {
+  local _ad_name="$1" _ad_tier="$2"
+  local _ad_file _ad_timeout
+
+  if [ -z "$_ad_name" ] || [ -z "$_ad_tier" ]; then
+    echo "[Error] 사용법: _ax_dispatch <name> <tier>" >&2
+    return 1
+  fi
+
+  # provider dispatch 로드 확인
+  if ! type _ax_provider_dispatch >/dev/null 2>&1; then
+    echo "[Error] provider에 _ax_provider_dispatch가 정의되지 않았습니다." >&2
+    return 1
+  fi
+
+  # name → agent 파일 매핑
+  case "$_ad_name" in
+    security)     _ad_file="${_AX_ROOT}/agents/security-reviewer.md" ;;
+    test)         _ad_file="${_AX_ROOT}/agents/test-reviewer.md" ;;
+    architecture) _ad_file="${_AX_ROOT}/agents/architecture-reviewer.md" ;;
+    *)
+      echo "[Error] unknown subagent: $_ad_name" >&2
+      return 1
+      ;;
+  esac
+
+  if [ ! -f "$_ad_file" ]; then
+    echo "[Error] agent 파일 없음: $_ad_file" >&2
+    return 1
+  fi
+
+  # tier에 맞는 timeout 설정
+  case "$_ad_tier" in
+    low)      _ad_timeout="$_AX_TIMEOUT_LOW" ;;
+    standard) _ad_timeout="$_AX_TIMEOUT_STANDARD" ;;
+    high)     _ad_timeout="$_AX_TIMEOUT_HIGH" ;;
+    *)        _ad_timeout="$_AX_TIMEOUT_HIGH" ;;
+  esac
+
+  _AX_CURRENT_TIMEOUT="$_ad_timeout" _ax_provider_dispatch "$_ad_file" "$_ad_tier"
+}
+
 _ax_ai() {
   local _ai_tier="$1"; shift
   local _ai_timeout

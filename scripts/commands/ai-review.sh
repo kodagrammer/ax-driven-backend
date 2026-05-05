@@ -249,6 +249,128 @@ _ax_review_exec() {
   ${EDITOR:-vi} "$_re_file"
 }
 
+# subagent dispatch: subagents[] 순회하며 각 agent 실행
+# 사용법: _ax_review_dispatch_subagents <ax_root> <diff_mode> <base> <tier> <subagents_json_array>
+# stdout: 실행된 agent 이름 목록 (줄바꿈 구분)
+_ax_review_dispatch_subagents() {
+  local _ds_root="$1" _ds_mode="$2" _ds_base="$3" _ds_tier="$4" _ds_subs_json="$5"
+  local _ds_tmp="${_ds_root}/tmp"
+  local _ds_diff_file="$_ds_tmp/dispatch-src-diff.tmp"
+  local _ds_names _ds_name _ds_rc
+
+  mkdir -p "$_ds_tmp"
+  trap 'rm -f "$_ds_diff_file"' RETURN
+
+  # diff를 한 번만 생성
+  _ax_review_diff "$_ds_mode" "$_ds_base" > "$_ds_diff_file"
+  if [ ! -s "$_ds_diff_file" ]; then
+    echo "[ERROR] subagent dispatch용 diff가 비어있습니다." >&2
+    rm -f "$_ds_diff_file"
+    return 1
+  fi
+
+  # subagents JSON 배열 → 줄바꿈 구분 목록
+  _ds_names=$(printf '%s\n' "$_ds_subs_json" | jq -r '.[]')
+
+  # 각 subagent dispatch
+  while IFS= read -r _ds_name; do
+    [ -z "$_ds_name" ] && continue
+    echo "[ax-driven] subagent 실행: $_ds_name (tier: $_ds_tier)" >&2
+
+    _AX_TOKEN_FILE="$_ds_tmp/token-${_ds_name}.log"
+    export _AX_TOKEN_FILE
+    _ax_dispatch "$_ds_name" "$_ds_tier" < "$_ds_diff_file" > "$_ds_tmp/review-${_ds_name}.md" 2>"$_ds_tmp/error-${_ds_name}.log"
+    _ds_rc=$?
+    unset _AX_TOKEN_FILE
+
+    if [ $_ds_rc -ne 0 ] || [ ! -s "$_ds_tmp/review-${_ds_name}.md" ]; then
+      echo "[WARN] subagent '$_ds_name' 실패 — 건너뜀" >&2
+      if [ -s "$_ds_tmp/error-${_ds_name}.log" ]; then
+        cat "$_ds_tmp/error-${_ds_name}.log" >&2
+      fi
+      rm -f "$_ds_tmp/review-${_ds_name}.md"
+    else
+      echo "[ax-driven] subagent '$_ds_name' 완료" >&2
+      if [ -s "$_ds_tmp/token-${_ds_name}.log" ]; then
+        cat "$_ds_tmp/token-${_ds_name}.log" >&2
+      fi
+      echo "$_ds_name"
+    fi
+    rm -f "$_ds_tmp/error-${_ds_name}.log" "$_ds_tmp/token-${_ds_name}.log"
+  done <<EOF
+$_ds_names
+EOF
+}
+
+# subagent 결과 취합: collector 프롬프트에 결과 주입 → 통합 리포트 생성
+# 사용법: _ax_review_collect <ax_root> <tier> <completed_agents>
+# completed_agents: 줄바꿈 구분된 agent 이름 목록 (stdin 아님, 인자)
+_ax_review_collect() {
+  local _rc_root="$1" _rc_tier="$2" _rc_agents="$3"
+  local _rc_tmp="${_rc_root}/tmp"
+  local _rc_collector="${_rc_root}/agents/review-collector.md"
+  local _rc_file="$_rc_tmp/review.md"
+  local _rc_results="" _rc_name _rc_prompt _rc_rc
+
+  if [ ! -f "$_rc_collector" ]; then
+    echo "[ERROR] collector 파일 없음: $_rc_collector" >&2
+    return 1
+  fi
+
+  # 각 subagent 결과를 [reviewer: name] 섹션으로 조합
+  while IFS= read -r _rc_name; do
+    [ -z "$_rc_name" ] && continue
+    if [ -f "$_rc_tmp/review-${_rc_name}.md" ]; then
+      _rc_results="${_rc_results}
+[reviewer: ${_rc_name}]
+$(cat "$_rc_tmp/review-${_rc_name}.md")
+
+"
+    fi
+  done <<EOF
+$_rc_agents
+EOF
+
+  if [ -z "$_rc_results" ]; then
+    echo "[ERROR] 취합할 subagent 결과가 없습니다." >&2
+    return 1
+  fi
+
+  # {{RESULTS}} 치환
+  local _rc_results_file="$_rc_tmp/collect-results.tmp"
+  printf '%s\n' "$_rc_results" > "$_rc_results_file"
+  _rc_prompt=$(sed -e "/{{RESULTS}}/r $_rc_results_file" -e '/{{RESULTS}}/d' "$_rc_collector")
+  rm -f "$_rc_results_file"
+
+  echo "[ax-driven] 취합 리뷰 생성 중... (tier: $_rc_tier)" >&2
+
+  _AX_TOKEN_FILE="$_rc_tmp/token-collect.log"
+  export _AX_TOKEN_FILE
+  printf '%s\n' "$_rc_prompt" | _ax_ai "$_rc_tier" 300 > "$_rc_file" 2>"$_rc_tmp/error-collect.log"
+  _rc_rc=$?
+  unset _AX_TOKEN_FILE
+
+  if [ $_rc_rc -ne 0 ] || [ ! -s "$_rc_file" ]; then
+    if [ -s "$_rc_tmp/error-collect.log" ]; then
+      echo "[ERROR] 취합 요청 실패:" >&2
+      cat "$_rc_tmp/error-collect.log" >&2
+    else
+      echo "[ERROR] 취합 응답이 비어있습니다." >&2
+    fi
+    rm -f "$_rc_file" "$_rc_tmp/token-collect.log" "$_rc_tmp/error-collect.log"
+    return 1
+  fi
+  rm -f "$_rc_tmp/error-collect.log"
+
+  echo "[ax-driven] 취합 완료: $_rc_file" >&2
+  if [ -s "$_rc_tmp/token-collect.log" ]; then
+    cat "$_rc_tmp/token-collect.log" >&2
+    rm -f "$_rc_tmp/token-collect.log"
+  fi
+
+  ${EDITOR:-vi} "$_rc_file"
+}
+
 # triage JSON → execution plan JSON
 # stdin: validated triage JSON
 # stdout: execution plan JSON
@@ -438,11 +560,103 @@ ai-review() {
     return 0
   fi
 
-  # fast/deep → 실행 계획 출력 후 리뷰 실행
-  printf '%s\n' "$_exec_plan" | _ax_review_plan "Running ${_eff_mode} review... (tier: $_tier)"
+  # --- base review (fast/deep) 항상 실행 ---
+  local _subagents_json
+  _subagents_json=$(printf '%s\n' "$_exec_plan" | jq -c '.subagents // []')
+  local _subagents_count
+  _subagents_count=$(printf '%s\n' "$_subagents_json" | jq 'length')
+
+  # subagents가 있으면 base를 경량화 (전문 분석은 subagent가 담당)
+  if [ "$_subagents_count" -gt 0 ]; then
+    _eff_mode="fast"
+    _tier="low"
+  fi
+
+  printf '%s\n' "$_exec_plan" | _ax_review_plan "Running ${_eff_mode} review... (tier: $_tier, subagents: $_subagents_count)"
   echo ""
-  echo "  편집기에서 리뷰 결과를 확인해주세요."
   echo "  리뷰 반영 후 _ax_done review 로 정리해주세요."
   echo ""
-  _ax_review_exec "$_ax_root" "$_diff_mode" "$_branch_base" "$_tier" "$_eff_mode"
+
+  # base review 실행 → tmp/review-base.md
+  local _base_file="$_tmp/review-base.md"
+  local _base_prompt _base_rc _base_diff_file="$_tmp/base-diff.tmp"
+
+  _base_prompt=$(_ax_review_prompt "$_ax_root" "$_eff_mode")
+  if [ $? -ne 0 ] || [ -z "$_base_prompt" ]; then
+    echo "[ERROR] prompt 선택 실패: mode=$_eff_mode" >&2
+    return 1
+  fi
+  if [ ! -f "$_base_prompt" ]; then
+    echo "[ERROR] prompt 파일 없음: $_base_prompt" >&2
+    return 1
+  fi
+
+  echo "[ax-driven] base review 실행 중... (${_eff_mode}, tier: $_tier)"
+  _ax_review_diff "$_diff_mode" "$_branch_base" > "$_base_diff_file"
+
+  local _base_input
+  if grep -q '{{DIFF}}' "$_base_prompt"; then
+    _base_input=$(sed -e "/{{DIFF}}/r $_base_diff_file" -e '/{{DIFF}}/d' "$_base_prompt")
+  else
+    _base_input=$(cat "$_base_prompt"; cat "$_base_diff_file")
+  fi
+  rm -f "$_base_diff_file"
+
+  _AX_TOKEN_FILE="$_tmp/token-base.log"
+  export _AX_TOKEN_FILE
+  printf '%s\n' "$_base_input" \
+    | _ax_ai "$_tier" 300 > "$_base_file" 2>"$_tmp/error-base.log"
+  _base_rc=$?
+  unset _AX_TOKEN_FILE
+
+  if [ $_base_rc -ne 0 ] || [ ! -s "$_base_file" ]; then
+    if [ -s "$_tmp/error-base.log" ]; then
+      echo "[ERROR] base review 실패:" >&2
+      cat "$_tmp/error-base.log" >&2
+    else
+      echo "[ERROR] base review 응답이 비어있습니다." >&2
+    fi
+    rm -f "$_base_file" "$_tmp/token-base.log" "$_tmp/error-base.log"
+    return 1
+  fi
+  rm -f "$_tmp/error-base.log"
+  echo "[ax-driven] base review 완료"
+  if [ -s "$_tmp/token-base.log" ]; then
+    cat "$_tmp/token-base.log"
+    rm -f "$_tmp/token-base.log"
+  fi
+
+  # --- subagents가 없으면 base 결과만 출력 ---
+  if [ "$_subagents_count" -eq 0 ]; then
+    cp "$_base_file" "$_tmp/review.md"
+    rm -f "$_base_file"
+    echo ""
+    ${EDITOR:-vi} "$_tmp/review.md"
+    return 0
+  fi
+
+  # --- subagents dispatch ---
+  local _completed_agents
+  _completed_agents=$(_ax_review_dispatch_subagents "$_ax_root" "$_diff_mode" "$_branch_base" "$_tier" "$_subagents_json")
+
+  # 모든 subagent 실패 시 base 결과만 출력 (collect 불필요)
+  if [ -z "$_completed_agents" ]; then
+    echo "[WARN] 모든 subagent 실패 — base 결과만 출력합니다." >&2
+    cp "$_tmp/review-base.md" "$_tmp/review.md"
+    rm -f "$_tmp/review-base.md"
+    ${EDITOR:-vi} "$_tmp/review.md"
+    return 0
+  fi
+
+  # --- collect: base + subagents → final report ---
+  local _all_agents
+  _all_agents=$(printf 'base\n%s' "$_completed_agents")
+
+  _ax_review_collect "$_ax_root" "$_tier" "$_all_agents"
+  local _collect_rc=$?
+
+  # 임시 subagent 결과 파일 정리 (최종 review.md는 유지)
+  rm -f "$_tmp"/review-base.md "$_tmp"/review-security.md "$_tmp"/review-test.md "$_tmp"/review-architecture.md 2>/dev/null
+
+  return $_collect_rc
 }

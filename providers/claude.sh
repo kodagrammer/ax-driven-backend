@@ -28,6 +28,37 @@ _ax_provider_call() {
   _ax_claude --model "$_pc_model" "$@"
 }
 
+# subagent dispatch: agent prompt 파일 로드 → {{DIFF}} 치환 → _ax_provider_call
+# 인터페이스 계약:
+#   함수명: _ax_provider_dispatch
+#   입력:   $1=agent_file_path, $2=tier, stdin=diff
+#   출력:   stdout=AI 응답 본문, stderr=에러 메시지
+#   종료코드: 0=성공, 비정상=실패
+#   참고:   timeout은 호출 측(_ax_dispatch)이 _AX_CURRENT_TIMEOUT으로 설정
+_ax_provider_dispatch() {
+  local _pd_file="$1" _pd_tier="$2"
+  local _pd_prompt
+
+  if [ ! -f "$_pd_file" ]; then
+    echo "[Error] agent 파일 없음: $_pd_file" >&2
+    return 1
+  fi
+
+  # stdin에서 diff를 임시 파일에 저장 (sed 특수문자 문제 회피)
+  local _pd_tmp_dir="${_AX_ROOT}/tmp"
+  mkdir -p "$_pd_tmp_dir"
+  local _pd_tmp
+  _pd_tmp=$(mktemp "${_pd_tmp_dir}/dispatch-diff.XXXXXX")
+  cat > "$_pd_tmp"
+
+  # {{DIFF}} 치환: sed r 명령으로 파일 삽입
+  _pd_prompt=$(sed -e "/{{DIFF}}/r $_pd_tmp" -e '/{{DIFF}}/d' "$_pd_file")
+  rm -f "$_pd_tmp"
+
+  # _ax_provider_call로 전달 (timeout은 _AX_CURRENT_TIMEOUT 환경변수 참조)
+  printf '%s\n' "$_pd_prompt" | _ax_provider_call "$_pd_tier"
+}
+
 _ax_claude() {
   local _ac_secs="${_AX_CURRENT_TIMEOUT:-90}"
   local _ac_json _ac_rc _ac_err _ac_result
