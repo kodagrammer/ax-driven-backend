@@ -31,7 +31,8 @@
 
 | 방식 | 역할 | 상세 가이드 |
 |------|------|------------|
-| **프롬프트 체이닝** (`scripts/`, `prompts/`) | 커밋 메시지 생성, PR 리뷰, 이슈 생성 등을 AI에게 위임 | [CLI & 프롬프트 체이닝 가이드](docs/guides/01-cli-pipeline.md) |
+| **프롬프트 체이닝** (`scripts/`, `prompts/`) | 커밋 메시지 생성, 코드 리뷰, 이슈 생성 등을 AI에게 위임 | [CLI & 프롬프트 체이닝 가이드](docs/guides/01-cli-pipeline.md) |
+| **Subagent 리뷰** (`agents/`, `schemas/`) | 전문 역할별 리뷰어가 독립 분석 후 결과 취합 | [Agents & Schemas 가이드](docs/guides/04-agents-and-schemas.md) |
 | **Git Hooks** (`hooks/git/`) | 커밋 컨벤션 검증, 민감 파일 차단, push 전 원격 동기화 | [Git Hooks 가이드](docs/guides/02-git-hooks.md) |
 | **Claude Code Hooks** (`hooks/claude/`) | Claude Code 세션 내 lint 자동 실행, 커밋 규칙 주입 | [Claude Code Hooks 가이드](docs/guides/03-claude-code-hooks.md) |
 
@@ -159,8 +160,8 @@ ax-driven/
 │   ├── lib/              # 공용 셸 유틸리티
 │   └── claude/           # 호환성 래퍼 (기존 경로 유지)
 ├── prompts/              # AI에게 전달하는 작업별 프롬프트
-├── agents/               # 역할 기반 에이전트 프롬프트 (예정)
-├── schemas/              # AI 출력물 JSON Schema 계약 (예정)
+├── agents/               # 역할 기반 subagent 프롬프트
+├── schemas/              # AI 출력물 JSON Schema 계약
 ├── templates/            # AI 출력물의 마크다운 포맷 정의
 ├── config/               # label 매핑 등 사용자 설정
 ├── hooks/
@@ -183,8 +184,8 @@ ax-driven/
 | `templates/` | **직접 참조** | 해당 템플릿 시나리오 동작 안 함 |
 | `hooks/` | 참조 안 함 | Hook 자동화만 해제 |
 | `docs/` | 참조 안 함 | 영향 없음 |
-| `agents/` | 미사용 (예정) | 영향 없음 |
-| `schemas/` | 미사용 (예정) | 영향 없음 |
+| `agents/` | **직접 참조** | subagent 리뷰 불가 (base review는 동작) |
+| `schemas/` | **직접 참조** | triage JSON 검증 불가 |
 | `tests/` | 참조 안 함 | 테스트만 실행 불가 |
 | `workflows/` | 참조 안 함 | CI/CD 자동화만 해제 |
 
