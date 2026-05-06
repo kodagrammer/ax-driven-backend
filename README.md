@@ -31,7 +31,8 @@
 
 | 방식 | 역할 | 상세 가이드 |
 |------|------|------------|
-| **프롬프트 체이닝** (`scripts/`, `prompts/`) | 커밋 메시지 생성, PR 리뷰, 이슈 생성 등을 AI에게 위임 | [CLI & 프롬프트 체이닝 가이드](docs/guides/01-cli-pipeline.md) |
+| **프롬프트 체이닝** (`scripts/`, `prompts/`) | 커밋 메시지 생성, 코드 리뷰, 이슈 생성 등을 AI에게 위임 | [CLI & 프롬프트 체이닝 가이드](docs/guides/01-cli-pipeline.md) |
+| **Subagent 리뷰** (`agents/`, `schemas/`) | 전문 역할별 리뷰어가 독립 분석 후 결과 취합 | [Agents & Schemas 가이드](docs/guides/04-agents-and-schemas.md) |
 | **Git Hooks** (`hooks/git/`) | 커밋 컨벤션 검증, 민감 파일 차단, push 전 원격 동기화 | [Git Hooks 가이드](docs/guides/02-git-hooks.md) |
 | **Claude Code Hooks** (`hooks/claude/`) | Claude Code 세션 내 lint 자동 실행, 커밋 규칙 주입 | [Claude Code Hooks 가이드](docs/guides/03-claude-code-hooks.md) |
 

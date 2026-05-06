@@ -86,6 +86,18 @@ AI 응답을 자연어 파싱이 아닌 **구조화된 JSON**으로 받아
 2. 스키마는 JSON Schema Draft 2020-12를 따른다.
 3. 각 스키마에는 `$id`, `description`을 포함한다.
 
+### risk_level vs severity 구분
+
+ai-review에는 두 가지 다른 레벨 체계가 존재한다. 혼동하지 말 것.
+
+| 구분 | 적용 단위 | 값 | 사용 위치 |
+|------|-----------|-----|-----------|
+| `risk_level` | PR 전체 (triage 판정) | none / low / medium / high | `review-decision.schema.json` |
+| `severity` | 개별 finding (리뷰 지적 사항) | critical / high / medium / low / info | `review-collector.md`, agent 출력 |
+
+- `risk_level`은 triage가 diff 전체를 보고 매기는 **PR 단위 위험도**
+- `severity`는 각 리뷰어가 개별 이슈에 매기는 **지적 사항 단위 심각도**
+
 ### review-decision.schema.json 주요 필드
 
 | 필드 | 타입 | 설명 |

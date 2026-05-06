@@ -37,7 +37,8 @@
 |------|---------|-------------|------|
 | 브랜치명 생성 | low | haiku | 이슈 제목 → 브랜치명 단순 변환 |
 | 커밋 메시지 생성 | standard | sonnet | diff 분석 + 컨벤션 적용 |
-| PR 아키텍처 리뷰 | high | opus | 코드 맥락을 깊이 읽어야 하는 작업 |
+| 코드 리뷰 — triage | low | haiku | diff 분류 (cheap routing) |
+| 코드 리뷰 — review | triage 결정 | triage 결정 | [상세: Agents & Schemas 가이드](04-agents-and-schemas.md) |
 | 이슈 생성 | - | - (AI 미사용) | 명세서 → gh CLI 직접 실행 |
 
 > 수동 파이프라인에서는 `--model` 옵션으로 모델을 직접 지정할 수 있다. 생략하면 Claude Code 기본 모델이 사용된다.
@@ -116,45 +117,41 @@ ai-commit
 
 <br/>
 
-## 👁️‍🗨️ 시나리오 2: PR 아키텍처 리뷰
+## 👁️‍🗨️ 시나리오 2: 코드 리뷰 (Pre-merge)
 
-현재 브랜치의 전체 변경사항을 AI 아키텍트가 리뷰한다.
+PR 생성 전에 로컬 변경사항을 AI가 자체 검열한다.
+triage가 diff를 분류하고, 필요 시 전문 subagent(security, test, architecture)를 추가 실행하여 통합 리포트를 생성한다.
 
 #### 파이프라인 흐름
 
 ```
-git diff main...HEAD ─→ PR 리뷰 프롬프트와 결합 ─→ AI 리뷰 생성 ─→ 임시 파일 저장 ─→ [사람 확인] ─→ 코드 수정 / PR 반영 ─→ 임시 파일 삭제
-        자동                     자동               자동           자동         사람 판단          사람 실행            자동
+diff 수집 ─→ triage (haiku) ─→ Decision JSON ─→ base review ─→ [subagent dispatch] ─→ [collect] ─→ 임시 파일 저장 ─→ [사람 확인] ─→ 코드 수정
+  자동           자동              자동            자동             자동(조건부)       자동(조건부)      자동           사람 판단       사람 실행
 ```
+
+> subagent가 없으면 base review 결과만 출력. subagent가 있으면 base(haiku로 경량화) + subagent 결과를 collector가 취합.
+> 상세 구조는 [Agents & Schemas 가이드](04-agents-and-schemas.md) 참조.
 
 #### 명령어
 
 ```bash
-# *️⃣ CLI로 실행
-# [자동 구간] 아키텍처 리뷰를 임시 파일에 저장
-mkdir -p ax-driven/tmp
-git diff main...HEAD | cat ax-driven/prompts/03-pr-reviewer.md - | claude --print --model opus > ax-driven/tmp/review.md
-
-# [사람 확인 구간] 리뷰 결과 확인
-vi ax-driven/tmp/review.md
-
-# [정리] 리뷰 반영 완료 후 삭제
-rm ax-driven/tmp/review.md
-
-# ⏩️ 단축키 사용
+# ⏩️ 단축 명령어 (기본: staged 변경사항)
 ai-review
+
+# 전체 로컬 변경사항 (staged + unstaged)
+ai-review --all
+
+# 브랜치 diff (main 대비)
+ai-review --branch
+
+# triage Decision JSON만 확인
+ai-review --json
 ```
 
 #### 사람이 확인할 포인트
-- Must Fix 항목이 실제로 문제인가? (False Positive 여부)
-- Should Fix 중 현재 스코프에서 처리할 것과 후속 이슈로 뺄 것 분류
-- Consider 항목은 팀과 논의가 필요한지 판단
-
-#### 응용: 특정 파일만 리뷰
-
-```bash
-git diff main...HEAD -- src/service/PaymentService.java | cat ax-driven/prompts/03-pr-reviewer.md - | claude --print --model opus > ax-driven/tmp/review.md
-```
+- critical/high 지적이 실제 문제인가? (오탐 여부)
+- medium 항목 중 현재 스코프에서 처리할 것과 후속 이슈로 뺄 것 분류
+- Final Verdict가 `request_changes`이면 반드시 수정 후 재실행
 
 <br/>
 
