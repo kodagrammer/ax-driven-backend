@@ -4,9 +4,6 @@
 # 설치:
 #   source /path/to/ax-driven/bin/ax-driven.sh
 #
-# 호환:
-#   source /path/to/ax-driven/scripts/claude/ax-driven.sh  (기존 경로도 동작)
-#
 # 명령어:
 #   ai-commit     커밋 메시지 생성 → 편집기 → 확인 후 커밋
 #   ai-branch     이슈 기반 브랜치 생성 → 확인 → 체크아웃

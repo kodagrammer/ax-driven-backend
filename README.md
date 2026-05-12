@@ -61,11 +61,8 @@ git subtree pull --prefix=ax-driven https://github.com/{your-org}/ax-driven-back
 `ax-driven.sh`를 source하면 단축 명령어를 사용할 수 있다.
 
 ```bash
-# 단축 명령어 활성화 (권장)
+# 단축 명령어 활성화
 source ax-driven/bin/ax-driven.sh
-
-# 기존 경로도 동작 (호환)
-source ax-driven/scripts/claude/ax-driven.sh
 
 # 영구 등록 (선택)
 echo 'source /absolute/path/to/ax-driven/bin/ax-driven.sh' >> ~/.zshrc

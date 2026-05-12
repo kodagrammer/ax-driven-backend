@@ -43,18 +43,9 @@ echo "## 필수 의존성"
 _check "jq 설치" "command -v jq >/dev/null 2>&1"
 echo ""
 
-# 3. source 가능 여부 (새 경로)
+# 3. source 가능 여부
 echo "## source 테스트"
 _check "bin/ax-driven.sh source" "bash -c 'cd $_ROOT && source bin/ax-driven.sh && type ai-commit >/dev/null 2>&1'"
-_check "scripts/claude/ax-driven.sh source (호환)" "bash -c 'cd $_ROOT && source scripts/claude/ax-driven.sh && type ai-commit >/dev/null 2>&1'"
-echo ""
-
-# legacy wrapper 회귀: 구 경로에서도 ai-review 정의가 forwarding 되는지 확인
-echo "## legacy wrapper 회귀"
-_check "ax-driven.sh wrapper → ai-review 정의" \
-  "bash -c 'cd $_ROOT && source scripts/claude/ax-driven.sh && type ai-review >/dev/null 2>&1'"
-_check "_ai-review.sh 단독 source → ai-review 정의" \
-  "bash -c 'cd $_ROOT && source scripts/claude/_ai-review.sh && type ai-review >/dev/null 2>&1'"
 echo ""
 
 # ai-review empty diff 가드: 빈 git repo에서 모드별 안내 메시지 확인
