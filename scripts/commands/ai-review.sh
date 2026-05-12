@@ -40,6 +40,7 @@ Options:
 
 Description:
   Default behavior reviews staged changes only.
+  Invalid triage JSON is auto-recovered when possible; otherwise the review is skipped.
 
 Examples:
   ai-review
@@ -132,6 +133,41 @@ _ax_review_validate() {
   printf '%s\n' "$_rv_json"
 }
 
+# 응답 본문에서 첫 '{'부터 마지막 '}'까지 추출 (마크다운/설명 텍스트 제거)
+# stdin: 원본 응답, stdout: JSON 후보 (없으면 빈 출력)
+_ax_review_extract_json() {
+  awk '
+    /\{/ && !found { found=1; sub(/^[^{]*/, "") }
+    found { buf = buf $0 "\n" }
+    END {
+      for (i = length(buf); i > 0; i--) {
+        if (substr(buf, i, 1) == "}") { print substr(buf, 1, i); exit }
+      }
+    }
+  '
+}
+
+# triage 1회 시도 (AI 호출 → validate, 실패 시 extract+validate 복구)
+# stdout: 검증된 JSON (실패 시 비어있음)
+# 반환: 0=성공, 1=실패
+_ax_review_triage_once() {
+  local _to_root="$1" _to_mode="$2" _to_base="$3"
+  local _to_raw _to_json _to_ext
+  _to_raw=$(_ax_review_triage "$_to_root" "$_to_mode" "$_to_base") || return 1
+  if _to_json=$(printf '%s\n' "$_to_raw" | _ax_review_validate 2>/dev/null); then
+    printf '%s\n' "$_to_json"
+    return 0
+  fi
+  _to_ext=$(printf '%s\n' "$_to_raw" | _ax_review_extract_json)
+  if [ -n "$_to_ext" ] \
+     && _to_json=$(printf '%s\n' "$_to_ext" | _ax_review_validate 2>/dev/null); then
+    echo "[ax-driven] triage JSON 추출로 복구" >&2
+    printf '%s\n' "$_to_json"
+    return 0
+  fi
+  return 1
+}
+
 # 실행 계획 마크다운 출력
 # 사용법: echo "$execution_plan_json" | _ax_review_plan <action_label>
 _ax_review_plan() {
@@ -182,71 +218,6 @@ _ax_review_prompt() {
     deep) echo "${_rpr_root}/prompts/review-deep.md" ;;
     *)    echo "[ERROR] unknown review mode: $_rpr_mode" >&2; return 1 ;;
   esac
-}
-
-# 리뷰 실행 (tier + prompt 파라미터화)
-# 사용법: _ax_review_exec <ax_root> <mode> <base> <tier> <effective_review_mode>
-_ax_review_exec() {
-  local _re_root="$1"
-  local _re_mode="$2"
-  local _re_base="$3"
-  local _re_tier="$4"
-  local _re_eff="$5"
-  local _re_tmp="${_re_root}/tmp"
-  local _re_file="$_re_tmp/review.md"
-  local _re_prompt _re_rc
-
-  _re_prompt=$(_ax_review_prompt "$_re_root" "$_re_eff")
-  if [ $? -ne 0 ] || [ -z "$_re_prompt" ]; then
-    echo "[ERROR] prompt 선택 실패: mode=$_re_eff" >&2
-    return 1
-  fi
-  if [ ! -f "$_re_prompt" ]; then
-    echo "[ERROR] prompt 파일 없음: $_re_prompt" >&2
-    return 1
-  fi
-
-  echo "[ax-driven] AI 리뷰 생성 중... (tier: $_re_tier, prompt: $(basename "$_re_prompt"))"
-
-  # prompt 내 {{DIFF}} placeholder를 실제 diff로 치환
-  local _re_diff_file="$_re_tmp/diff.tmp"
-  _ax_review_diff "$_re_mode" "$_re_base" > "$_re_diff_file"
-
-  local _re_input
-  if grep -q '{{DIFF}}' "$_re_prompt"; then
-    _re_input=$(sed -e "/{{DIFF}}/r $_re_diff_file" -e '/{{DIFF}}/d' "$_re_prompt")
-  else
-    _re_input=$(cat "$_re_prompt"; cat "$_re_diff_file")
-  fi
-  rm -f "$_re_diff_file"
-
-  _AX_TOKEN_FILE="$_re_tmp/token.log"
-  export _AX_TOKEN_FILE
-  printf '%s\n' "$_re_input" \
-    | _ax_ai "$_re_tier" 300 > "$_re_file" 2>"$_re_tmp/error.log"
-  _re_rc=$?
-  unset _AX_TOKEN_FILE
-
-  if [ $_re_rc -ne 0 ] || [ ! -s "$_re_file" ]; then
-    if [ -s "$_re_tmp/error.log" ]; then
-      echo "[ERROR] AI 요청 실패:" >&2
-      cat "$_re_tmp/error.log" >&2
-    else
-      echo "[ERROR] AI 응답이 비어있습니다." >&2
-    fi
-    rm -f "$_re_file" "$_re_tmp/token.log"
-    return 1
-  fi
-  rm -f "$_re_tmp/error.log"
-
-  echo "[ax-driven] 생성 완료: $_re_file"
-  if [ -s "$_re_tmp/token.log" ]; then
-    cat "$_re_tmp/token.log"
-    rm -f "$_re_tmp/token.log"
-  fi
-  echo ""
-
-  ${EDITOR:-vi} "$_re_file"
 }
 
 # subagent dispatch: subagents[] 순회하며 각 agent 실행
@@ -425,7 +396,7 @@ ai-review() {
   local _tmp="${_ax_root}/tmp"
   local _json_mode=false
   local _diff_mode="staged" _branch_base=""
-  local _review_file _triage_json _triage_failed
+  local _review_file _triage_json
 
   # --- 인자 파싱 ---
   while [ $# -gt 0 ]; do
@@ -512,24 +483,12 @@ ai-review() {
   # jq 필수 확인
   _ax_require_jq_for_review || return 1
 
-  # --- triage ---
+  # --- triage (1회 시도, 실패 시 JSON 추출 복구만) ---
   echo "[ax-driven] triage 분석 중..." >&2
-  _triage_failed=false
-  _triage_json=$(_ax_review_triage "$_ax_root" "$_diff_mode" "$_branch_base")
-  if [ $? -ne 0 ]; then
-    _triage_failed=true
-  fi
-
-  # JSON 검증
-  if [ "$_triage_failed" = false ]; then
-    _triage_json=$(printf '%s\n' "$_triage_json" | _ax_review_validate)
-    if [ $? -ne 0 ]; then
-      _triage_failed=true
-    fi
-  fi
+  _triage_json=$(_ax_review_triage_once "$_ax_root" "$_diff_mode" "$_branch_base")
 
   # triage 실패 시 fallback: skip (리뷰 실행하지 않음)
-  if [ "$_triage_failed" = true ]; then
+  if [ -z "$_triage_json" ]; then
     echo "[WARN] triage 실패 — fallback: skip. 리뷰를 건너뜁니다." >&2
     echo "  수동 리뷰가 필요하면 diff를 직접 확인하세요." >&2
     return 1
