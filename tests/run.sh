@@ -175,6 +175,30 @@ _check_extract_empty "잘린 JSON (} 누락) → 추출 실패" \
   '{"risk_level":"low",'
 echo ""
 
+# triage_once가 추출 복구 경로에 진입했을 때 stderr 로그 발생 확인
+_check_recovery_log() {
+  local desc="$1"
+  local out
+  out=$(
+    source "$_ROOT/bin/ax-driven.sh" >/dev/null 2>&1
+    _ax_review_triage() {
+      printf 'prefix text\n{"risk_level":"low","review_mode":"fast","has_must_fix":false,"confidence":"high"}\n'
+    }
+    _ax_review_triage_once "$_ROOT" staged main 2>&1 >/dev/null
+  )
+  if echo "$out" | grep -q "triage JSON 추출로 복구"; then
+    echo "  [PASS] $desc"
+    _PASS=$((_PASS + 1))
+  else
+    echo "  [FAIL] $desc (got: $out)"
+    _FAIL=$((_FAIL + 1))
+  fi
+}
+
+echo "## 추출 복구 stderr 로그"
+_check_recovery_log "추출 복구 시 stderr에 복구 로그 출력"
+echo ""
+
 # 결과
 echo "---"
 echo "결과: $_PASS passed, $_FAIL failed"
