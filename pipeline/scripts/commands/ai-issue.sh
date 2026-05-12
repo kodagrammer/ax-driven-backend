@@ -70,8 +70,8 @@ ai-issue() {
   if [ "$_spec_count" -eq 0 ]; then
     echo "[ax-driven] tmp/에 spec 파일이 없습니다."
     echo ""
-    echo "  템플릿: ${_ax_root}/templates/03-work-specification.md"
-    echo "  예시:   cp ${_ax_root}/templates/03-work-specification.md ${_tmp}/spec.md"
+    echo "  템플릿: ${_ax_root}/pipeline/templates/03-work-specification.md"
+    echo "  예시:   cp ${_ax_root}/pipeline/templates/03-work-specification.md ${_tmp}/spec.md"
     echo ""
     echo "  명세서를 작성한 후 다시 ai-issue를 실행해주세요."
     echo "  복수 이슈는 tmp/에 spec01.md, spec02.md ... 형태로 배치하면 됩니다."

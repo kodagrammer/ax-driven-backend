@@ -137,7 +137,7 @@ ai-branch() {
   _AX_TOKEN_FILE="$_tmp/token.log"
   export _AX_TOKEN_FILE
   printf '%s\n\n---\n\n## 이슈 정보\n%s\n\n## 기존 브랜치 목록\n%s\n' \
-    "$(cat "${_ax_root}/prompts/05-branch-name-guide.md")" \
+    "$(cat "${_ax_root}/pipeline/prompts/05-branch-name-guide.md")" \
     "$_issue_content" \
     "$_branches" \
     | _ax_ai low > "$_file" 2>"$_tmp/error.log"
