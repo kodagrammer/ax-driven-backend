@@ -213,8 +213,9 @@ type: bug
 | `docs` | `docs: ...` | documentation |
 | `test` | `test: ...` | enhancement |
 
-> **label 커스텀:** `config/issue-labels.conf`에서 `type=label` 매핑을 수정할 수 있다.
-> 레포에 커스텀 label이 있다면 이 파일만 수정하면 된다. (예: `feature=new-feature`)
+> **label 커스텀:** `pipeline/schemas/issue-labels.json`의 `mappings`에서 `type → label`을 수정할 수 있다.
+> 레포에 커스텀 label이 있다면 이 파일만 수정하면 된다. (예: `"feature": "new-feature"`)
+> `default_type`은 spec에 type이 없거나 매핑에 없는 type이 들어왔을 때 적용된다 (후자는 stderr warning 출력).
 
 #### 사람이 확인할 포인트
 - 미리보기에서 이슈 제목이 의도와 맞는가?

@@ -1,0 +1,12 @@
+{
+  "default_type": "enhancement",
+  "mappings": {
+    "feature": "enhancement",
+    "bug": "bug",
+    "refactor": "enhancement",
+    "docs": "documentation",
+    "documentation": "documentation",
+    "test": "enhancement",
+    "enhancement": "enhancement"
+  }
+}

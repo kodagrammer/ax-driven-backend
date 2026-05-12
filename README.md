@@ -158,9 +158,8 @@ ax-driven/
 │   │   └── providers/    # Provider별 AI 실행 로직 (현재: Claude)
 │   ├── prompts/          # AI에게 전달하는 작업별 프롬프트
 │   ├── agents/           # 역할 기반 subagent 프롬프트
-│   ├── schemas/          # AI 출력물 JSON Schema 계약
+│   ├── schemas/          # JSON Schema 및 데이터 계약
 │   └── templates/        # AI 출력물의 마크다운 포맷 정의
-├── config/               # label 매핑 등 사용자 설정
 ├── hooks/
 │   ├── git/              # Git Hooks 스크립트
 │   └── claude/           # Claude Code Hooks 설정
@@ -177,12 +176,11 @@ ax-driven/
 | `pipeline/scripts/commands/` | **직접 참조** | 명령어 사용 불가 |
 | `pipeline/scripts/lib/` | **직접 참조** | 유틸리티 함수 사용 불가 |
 | `pipeline/prompts/` | **직접 참조** | 파이프라인 동작 안 함 |
-| `config/` | **직접 참조** | label 매핑이 내장 기본값으로 fallback |
 | `pipeline/templates/` | **직접 참조** | 해당 템플릿 시나리오 동작 안 함 |
 | `hooks/` | 참조 안 함 | Hook 자동화만 해제 |
 | `docs/` | 참조 안 함 | 영향 없음 |
 | `pipeline/agents/` | **직접 참조** | subagent 리뷰 불가 (base review는 동작) |
-| `pipeline/schemas/` | **직접 참조** | triage JSON 검증 불가 |
+| `pipeline/schemas/` | **직접 참조** | 스키마 기반 기능 동작 안 함 |
 | `tests/` | 참조 안 함 | 테스트만 실행 불가 |
 
 > 의존 방향은 항상 단방향. 사용하지 않는 AI 도구의 디렉토리는 삭제해도 다른 기능에 영향 없음.

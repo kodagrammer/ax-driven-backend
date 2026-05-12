@@ -12,7 +12,7 @@
 #   _ax_done      임시 파일 정리
 
 # --- 부트스트랩: BASH_SOURCE 기준으로 모든 모듈을 로드 ---
-# _ax_find는 런타임(명령어 실행 시) 전용 — 현재 프로젝트의 pipeline/prompts/config/tmp를 찾는다.
+# _ax_find는 런타임(명령어 실행 시) 전용 — 현재 프로젝트의 pipeline/prompts와 tmp를 찾는다.
 _ax_bin_dir="$(cd "$(dirname "${BASH_SOURCE:-$0}")" && pwd)"
 _AX_ROOT="$(cd "${_ax_bin_dir}/.." && pwd)"
 
