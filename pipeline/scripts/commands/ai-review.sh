@@ -62,7 +62,7 @@ _ax_review_triage() {
 
   _AX_TOKEN_FILE="$_rt_tmp/triage-token.log"
   export _AX_TOKEN_FILE
-  _rt_json=$({ cat "${_rt_root}/prompts/review-triage.md"; echo; echo "## Changed Files"; _ax_review_diff "$_rt_mode" "$_rt_base" --stat; echo; echo "## Diff Headers"; _ax_review_diff "$_rt_mode" "$_rt_base" | grep -E '^(diff --git|@@|[+-]{3} )'; } \
+  _rt_json=$({ cat "${_rt_root}/pipeline/prompts/review-triage.md"; echo; echo "## Changed Files"; _ax_review_diff "$_rt_mode" "$_rt_base" --stat; echo; echo "## Diff Headers"; _ax_review_diff "$_rt_mode" "$_rt_base" | grep -E '^(diff --git|@@|[+-]{3} )'; } \
     | _ax_ai low 2>"$_rt_tmp/triage-error.log")
   _rt_rc=$?
   unset _AX_TOKEN_FILE
@@ -214,8 +214,8 @@ _ax_review_plan() {
 _ax_review_prompt() {
   local _rpr_root="$1" _rpr_mode="$2"
   case "$_rpr_mode" in
-    fast) echo "${_rpr_root}/prompts/review-fast.md" ;;
-    deep) echo "${_rpr_root}/prompts/review-deep.md" ;;
+    fast) echo "${_rpr_root}/pipeline/prompts/review-fast.md" ;;
+    deep) echo "${_rpr_root}/pipeline/prompts/review-deep.md" ;;
     *)    echo "[ERROR] unknown review mode: $_rpr_mode" >&2; return 1 ;;
   esac
 }
@@ -279,7 +279,7 @@ EOF
 _ax_review_collect() {
   local _rc_root="$1" _rc_tier="$2" _rc_agents="$3"
   local _rc_tmp="${_rc_root}/tmp"
-  local _rc_collector="${_rc_root}/agents/review-collector.md"
+  local _rc_collector="${_rc_root}/pipeline/agents/review-collector.md"
   local _rc_file="$_rc_tmp/review.md"
   local _rc_results="" _rc_name _rc_prompt _rc_rc
 

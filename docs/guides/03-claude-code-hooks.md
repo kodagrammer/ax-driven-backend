@@ -179,7 +179,7 @@ Claude Code가 파일 수정 (Edit/Write)
 
 ## 2️⃣ 워크플로우: 커밋 시 팀 컨벤션 자동 주입
 
-Claude Code가 `git commit`을 실행하기 전에, 커밋 메시지 가이드(`prompts/00-git-commit-guide.md`)를 컨텍스트로 주입한다.
+Claude Code가 `git commit`을 실행하기 전에, 커밋 메시지 가이드(`pipeline/prompts/00-git-commit-guide.md`)를 컨텍스트로 주입한다.
 AI가 생성하는 커밋 메시지도 팀 컨벤션을 따르도록 보장한다.
 
 #### 흐름
@@ -203,7 +203,7 @@ Claude Code가 git commit 실행 시도
         "hooks": [
           {
             "type": "command",
-            "command": "input=$(cat); echo \"$input\" | jq -e '.tool_input.command | test(\"^git commit\")' >/dev/null 2>&1 && echo '{\"hookSpecificOutput\":{\"additionalContext\":'$(cat \"$CLAUDE_PROJECT_DIR/prompts/00-git-commit-guide.md\" | jq -Rs .)'}}' || exit 0",
+            "command": "input=$(cat); echo \"$input\" | jq -e '.tool_input.command | test(\"^git commit\")' >/dev/null 2>&1 && echo '{\"hookSpecificOutput\":{\"additionalContext\":'$(cat \"$CLAUDE_PROJECT_DIR/pipeline/prompts/00-git-commit-guide.md\" | jq -Rs .)'}}' || exit 0",
             "timeout": 5000
           }
         ]

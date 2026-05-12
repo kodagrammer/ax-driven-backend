@@ -8,35 +8,41 @@
 #
 # AI 호출 없음. spec에서 title/body를 추출하여 gh issue create로 직접 생성.
 # 1 spec = 1 issue.
-# type은 spec 내 HTML 주석 메타데이터(type: xxx)에서 추출. 미지정 시 enhancement.
+# type은 spec 내 HTML 주석 메타데이터(type: xxx)에서 추출. 미지정 시 default_type.
 
-# config/issue-labels.conf에서 label 조회
+_AX_ISSUE_LABELS_JSON="${_AX_ROOT}/pipeline/schemas/issue-labels.json"
+
+# pipeline/schemas/issue-labels.json에서 label 조회
 # 사용법: _issue_label <type>
-# 출력: label 문자열. 설정 파일 없거나 매칭 없으면 빈 문자열.
+# 출력: 매핑된 label 문자열. 매칭 없으면 빈 문자열.
 _issue_label() {
-  _il_conf="${_AX_ROOT}/config/issue-labels.conf"
-  [ -f "$_il_conf" ] || return 0
-  grep -v '^#' "$_il_conf" | grep "^${1}=" | head -1 | cut -d'=' -f2
+  [ -f "$_AX_ISSUE_LABELS_JSON" ] || return 0
+  jq -r --arg t "$1" '.mappings[$t] // ""' "$_AX_ISSUE_LABELS_JSON"
 }
 
-# spec 파일에서 type 메타데이터 추출
+# spec 파일에서 type 메타데이터 추출 + label 결정
 # <!-- ... type: bug ... --> 형태에서 읽음
 # 사용법: _issue_type <spec_file>
-# 출력: "type label" (공백 구분, type은 사용자 원본 값)
+# 출력: "type label" (공백 구분)
+# 정책:
+#   - 미지정: 조용히 default_type 적용
+#   - 알 수 없는 type: stderr warning 후 default_type 적용
 _issue_type() {
+  if [ ! -f "$_AX_ISSUE_LABELS_JSON" ]; then
+    echo "[ax-driven][ERROR] 라벨 매핑 파일 없음: $_AX_ISSUE_LABELS_JSON" >&2
+    return 1
+  fi
+  _it_default=$(jq -r '.default_type' "$_AX_ISSUE_LABELS_JSON")
+
   _it_raw=$(sed -n '/^<!--/,/-->/p' "$1" | grep -i '^type:' | head -1 | sed 's/^[Tt]ype: *//' | tr -d '[:space:]')
   _it_key=$(echo "$_it_raw" | tr '[:upper:]' '[:lower:]')
-  [ -z "$_it_key" ] && _it_key="enhancement"
+  [ -z "$_it_key" ] && _it_key="$_it_default"
 
-  # label: 설정 파일 우선, 없으면 내장 기본값
   _it_label=$(_issue_label "$_it_key")
   if [ -z "$_it_label" ]; then
-    case "$_it_key" in
-      bug)           _it_label="bug" ;;
-      docs)          _it_label="documentation" ;;
-      documentation) _it_label="documentation" ;;
-      *)             _it_label="enhancement" ;;
-    esac
+    echo "[ax-driven][WARN] 알 수 없는 type: '$_it_key'. default_type '$_it_default' 적용." >&2
+    _it_key="$_it_default"
+    _it_label=$(_issue_label "$_it_key")
   fi
 
   echo "$_it_key $_it_label"
@@ -70,8 +76,8 @@ ai-issue() {
   if [ "$_spec_count" -eq 0 ]; then
     echo "[ax-driven] tmp/에 spec 파일이 없습니다."
     echo ""
-    echo "  템플릿: ${_ax_root}/templates/03-work-specification.md"
-    echo "  예시:   cp ${_ax_root}/templates/03-work-specification.md ${_tmp}/spec.md"
+    echo "  템플릿: ${_ax_root}/pipeline/templates/03-work-specification.md"
+    echo "  예시:   cp ${_ax_root}/pipeline/templates/03-work-specification.md ${_tmp}/spec.md"
     echo ""
     echo "  명세서를 작성한 후 다시 ai-issue를 실행해주세요."
     echo "  복수 이슈는 tmp/에 spec01.md, spec02.md ... 형태로 배치하면 됩니다."

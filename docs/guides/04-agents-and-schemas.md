@@ -4,10 +4,10 @@
 
 <br/>
 
-## Agents (`agents/`)
+## Agents (`pipeline/agents/`)
 
-`prompts/`가 **작업 단위**(커밋, 리뷰, 브랜치)의 프롬프트를 담는다면,
-`agents/`는 **역할 단위**(보안 리뷰어, 테스트 분석가, 아키텍트)의 페르소나 프롬프트를 담는다.
+`pipeline/prompts/`가 **작업 단위**(커밋, 리뷰, 브랜치)의 프롬프트를 담는다면,
+`pipeline/agents/`는 **역할 단위**(보안 리뷰어, 테스트 분석가, 아키텍트)의 페르소나 프롬프트를 담는다.
 
 ### 파일
 
@@ -40,9 +40,9 @@ collect (결과 2개 이상):
 
 | 레이어 | 역할 | 파일 |
 |--------|------|------|
-| Shell orchestrator | WHAT: 어떤 subagent를 실행할지 결정 | `scripts/commands/ai-review.sh` |
-| Interface | 인터페이스 정의 (`_ax_dispatch`) | `scripts/lib/ai.sh` |
-| Provider | HOW: provider별 실행 방식 구현 | `providers/claude.sh` |
+| Shell orchestrator | WHAT: 어떤 subagent를 실행할지 결정 | `pipeline/scripts/commands/ai-review.sh` |
+| Interface | 인터페이스 정의 (`_ax_dispatch`) | `pipeline/scripts/lib/ai.sh` |
+| Provider | HOW: provider별 실행 방식 구현 | `pipeline/scripts/providers/claude.sh` |
 
 Claude provider는 `name → md 파일 로드 → {{DIFF}} 치환 → claude --print`로 구현한다.
 다른 provider(예: Codex)는 같은 `_ax_provider_dispatch` 인터페이스를 자체 방식으로 구현하면 된다.
@@ -68,7 +68,7 @@ Claude provider는 `name → md 파일 로드 → {{DIFF}} 치환 → claude --p
 
 <br/>
 
-## Schemas (`schemas/`)
+## Schemas (`pipeline/schemas/`)
 
 AI 출력물의 JSON Schema 계약 디렉토리.
 AI 응답을 자연어 파싱이 아닌 **구조화된 JSON**으로 받아
@@ -88,7 +88,7 @@ AI 응답을 자연어 파싱이 아닌 **구조화된 JSON**으로 받아
 
 ### 응답 무결성 처리
 
-triage 응답이 schema에 맞지 않을 때의 복구 정책 (`scripts/commands/ai-review.sh::_ax_review_triage_once`):
+triage 응답이 schema에 맞지 않을 때의 복구 정책 (`pipeline/scripts/commands/ai-review.sh::_ax_review_triage_once`):
 
 1. 1차: 마크다운 코드 펜스를 strip 후 `jq`로 파싱·검증
 2. 2차: 1차 실패 시 응답 본문에서 첫 `{`부터 마지막 `}`까지 JSON 블록을 추출(`_ax_review_extract_json`) 후 재검증

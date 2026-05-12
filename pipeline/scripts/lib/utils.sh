@@ -10,14 +10,14 @@ _ax_current_file() {
 }
 
 # PWD에서 상위로 올라가며 ax-driven 디렉토리를 찾는다
-# 탐지 기준: 디렉토리명이 "ax-driven"으로 시작하고 prompts/가 존재
+# 탐지 기준: 디렉토리명이 "ax-driven"으로 시작하고 pipeline/prompts/가 존재
 _ax_find() {
   _dir="$(pwd)"
   while [ "$_dir" != "/" ]; do
     # 하위에 ax-driven* 디렉토리가 있는 경우 (subtree로 가져온 경우)
     _match=$(find "$_dir" -maxdepth 1 -type d -name 'ax-driven*' 2>/dev/null | head -n 10)
     for _candidate in $_match; do
-      if [ -d "$_candidate/prompts" ]; then
+      if [ -d "$_candidate/pipeline/prompts" ]; then
         echo "$_candidate"
         return 0
       fi
@@ -25,7 +25,7 @@ _ax_find() {
     # 현재 디렉토리 자체가 ax-driven* 레포인 경우
     case "$(basename "$_dir")" in
       ax-driven*)
-        if [ -d "$_dir/prompts" ]; then
+        if [ -d "$_dir/pipeline/prompts" ]; then
           echo "$_dir"
           return 0
         fi
@@ -34,7 +34,7 @@ _ax_find() {
     _dir="$(dirname "$_dir")"
   done
   echo "[ERROR] ax-driven 디렉토리를 찾을 수 없습니다." >&2
-  echo "  프로젝트 내에 ax-driven*/prompts/ 구조가 있는지 확인해주세요." >&2
+  echo "  프로젝트 내에 ax-driven*/pipeline/prompts/ 구조가 있는지 확인해주세요." >&2
   return 1
 }
 

@@ -22,20 +22,22 @@ echo ""
 # 1. 스크립트 문법 검사
 echo "## 문법 검사 (bash -n)"
 _check "bin/ax-driven.sh"           "bash -n '$_ROOT/bin/ax-driven.sh'"
-_check "providers/claude.sh"        "bash -n '$_ROOT/providers/claude.sh'"
-_check "scripts/lib/utils.sh"       "bash -n '$_ROOT/scripts/lib/utils.sh'"
-_check "scripts/commands/ai-commit.sh"  "bash -n '$_ROOT/scripts/commands/ai-commit.sh'"
-_check "scripts/commands/ai-branch.sh"  "bash -n '$_ROOT/scripts/commands/ai-branch.sh'"
-_check "scripts/commands/ai-review.sh"  "bash -n '$_ROOT/scripts/commands/ai-review.sh'"
-_check "scripts/commands/ai-issue.sh"   "bash -n '$_ROOT/scripts/commands/ai-issue.sh'"
+_check "pipeline/scripts/providers/claude.sh"        "bash -n '$_ROOT/pipeline/scripts/providers/claude.sh'"
+_check "pipeline/scripts/lib/utils.sh"       "bash -n '$_ROOT/pipeline/scripts/lib/utils.sh'"
+_check "pipeline/scripts/commands/ai-commit.sh"  "bash -n '$_ROOT/pipeline/scripts/commands/ai-commit.sh'"
+_check "pipeline/scripts/commands/ai-branch.sh"  "bash -n '$_ROOT/pipeline/scripts/commands/ai-branch.sh'"
+_check "pipeline/scripts/commands/ai-review.sh"  "bash -n '$_ROOT/pipeline/scripts/commands/ai-review.sh'"
+_check "pipeline/scripts/commands/ai-issue.sh"   "bash -n '$_ROOT/pipeline/scripts/commands/ai-issue.sh'"
 echo ""
 
 # 2. 필수 디렉토리 존재
 echo "## 필수 디렉토리"
-_check "prompts/ 존재"    "[ -d '$_ROOT/prompts' ]"
-_check "providers/ 존재"  "[ -d '$_ROOT/providers' ]"
-_check "scripts/lib/ 존재"      "[ -d '$_ROOT/scripts/lib' ]"
-_check "scripts/commands/ 존재" "[ -d '$_ROOT/scripts/commands' ]"
+_check "pipeline/prompts/ 존재"        "[ -d '$_ROOT/pipeline/prompts' ]"
+_check "pipeline/scripts/providers/ 존재"  "[ -d '$_ROOT/pipeline/scripts/providers' ]"
+_check "pipeline/scripts/lib/ 존재"      "[ -d '$_ROOT/pipeline/scripts/lib' ]"
+_check "pipeline/scripts/commands/ 존재" "[ -d '$_ROOT/pipeline/scripts/commands' ]"
+_check "pipeline/schemas/ 존재"          "[ -d '$_ROOT/pipeline/schemas' ]"
+_check "pipeline/schemas/issue-labels.json 존재" "[ -f '$_ROOT/pipeline/schemas/issue-labels.json' ]"
 echo ""
 
 # 필수 의존성
@@ -43,18 +45,12 @@ echo "## 필수 의존성"
 _check "jq 설치" "command -v jq >/dev/null 2>&1"
 echo ""
 
-# 3. source 가능 여부 (새 경로)
+# 3. source 가능 여부 + ai-* 4개 명령어 등록 확인
 echo "## source 테스트"
 _check "bin/ax-driven.sh source" "bash -c 'cd $_ROOT && source bin/ax-driven.sh && type ai-commit >/dev/null 2>&1'"
-_check "scripts/claude/ax-driven.sh source (호환)" "bash -c 'cd $_ROOT && source scripts/claude/ax-driven.sh && type ai-commit >/dev/null 2>&1'"
-echo ""
-
-# legacy wrapper 회귀: 구 경로에서도 ai-review 정의가 forwarding 되는지 확인
-echo "## legacy wrapper 회귀"
-_check "ax-driven.sh wrapper → ai-review 정의" \
-  "bash -c 'cd $_ROOT && source scripts/claude/ax-driven.sh && type ai-review >/dev/null 2>&1'"
-_check "_ai-review.sh 단독 source → ai-review 정의" \
-  "bash -c 'cd $_ROOT && source scripts/claude/_ai-review.sh && type ai-review >/dev/null 2>&1'"
+_check "ai-branch 등록"          "bash -c 'cd $_ROOT && source bin/ax-driven.sh && type ai-branch >/dev/null 2>&1'"
+_check "ai-review 등록"          "bash -c 'cd $_ROOT && source bin/ax-driven.sh && type ai-review >/dev/null 2>&1'"
+_check "ai-issue 등록"           "bash -c 'cd $_ROOT && source bin/ax-driven.sh && type ai-issue >/dev/null 2>&1'"
 echo ""
 
 # ai-review empty diff 가드: 빈 git repo에서 모드별 안내 메시지 확인
@@ -197,6 +193,47 @@ _check_recovery_log() {
 
 echo "## 추출 복구 stderr 로그"
 _check_recovery_log "추출 복구 시 stderr에 복구 로그 출력"
+echo ""
+
+# ai-issue 라벨 매핑: type 메타데이터에 따라 label 결정되는지 검증
+_check_issue_type() {
+  local desc="$1" type_in="$2" expect_out="$3" expect_warn="$4"
+  local tmp spec out err pass=0
+  tmp=$(mktemp -d)
+  spec="$tmp/spec.md"
+  {
+    echo "<!--"
+    [ -n "$type_in" ] && echo "type: $type_in"
+    echo "-->"
+    echo "# Title"
+  } > "$spec"
+  out=$(
+    source "$_ROOT/bin/ax-driven.sh" >/dev/null 2>&1
+    _issue_type "$spec" 2>"$tmp/err"
+  )
+  err=$(cat "$tmp/err")
+  rm -rf "$tmp"
+
+  echo "$out" | grep -q -- "$expect_out" && pass=$((pass + 1))
+  if [ "$expect_warn" = "yes" ]; then
+    echo "$err" | grep -q "WARN" && pass=$((pass + 1))
+  else
+    [ -z "$err" ] && pass=$((pass + 1))
+  fi
+
+  if [ "$pass" -eq 2 ]; then
+    echo "  [PASS] $desc"
+    _PASS=$((_PASS + 1))
+  else
+    echo "  [FAIL] $desc (out='$out' err='$err')"
+    _FAIL=$((_FAIL + 1))
+  fi
+}
+
+echo "## ai-issue 라벨 매핑"
+_check_issue_type "정상 type (bug) → bug bug"              "bug"       "bug bug"                 "no"
+_check_issue_type "type 미지정 → 조용히 default 적용"      ""          "enhancement enhancement" "no"
+_check_issue_type "알 수 없는 type → WARN + default 적용"  "weirdtype" "enhancement enhancement" "yes"
 echo ""
 
 # 결과

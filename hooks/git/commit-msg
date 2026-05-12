@@ -1,6 +1,6 @@
 #!/bin/sh
 # commit-msg hook — 수동 커밋 메시지의 Conventional Commits 포맷 검증
-# 참조: prompts/00-git-commit-guide.md
+# 참조: pipeline/prompts/00-git-commit-guide.md
 
 COMMIT_MSG_FILE="$1"
 MSG=$(cat "$COMMIT_MSG_FILE")

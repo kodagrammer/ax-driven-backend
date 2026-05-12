@@ -3,7 +3,7 @@
 수동 커밋 시 컨벤션 검증, 민감 파일 커밋 방지, push 전 원격 상태 확인을 자동화하는 Git Hooks 가이드.
 AI를 호출하지 않으므로 토큰 소모가 없으며, git만 있으면 동작한다.
 
-> **원칙:** 검증과 보조만 한다. 커밋 메시지 생성은 `scripts/`의 역할이다.
+> **원칙:** 검증과 보조만 한다. 커밋 메시지 생성은 `pipeline/scripts/`의 역할이다.
 > AI가 생성한 커밋은 이미 컨벤션을 따르므로, 이 Hook은 **사람이 직접 커밋할 때** 실수를 잡아내는 안전망이다.
 
 <br/>
@@ -74,7 +74,7 @@ console\.log|debugger;|System\.out\.print|binding\.pry|import pdb|breakpoint\(\)
 
 ## 2️⃣ commit-msg — 커밋 메시지 포맷 검증
 
-커밋 메시지가 Conventional Commits 규격(`prompts/00-git-commit-guide.md`)을 따르는지 검증한다.
+커밋 메시지가 Conventional Commits 규격(`pipeline/prompts/00-git-commit-guide.md`)을 따르는지 검증한다.
 
 #### 올바른 형식
 

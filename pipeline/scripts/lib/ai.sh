@@ -38,9 +38,9 @@ _ax_dispatch() {
 
   # name → agent 파일 매핑
   case "$_ad_name" in
-    security)     _ad_file="${_AX_ROOT}/agents/security-reviewer.md" ;;
-    test)         _ad_file="${_AX_ROOT}/agents/test-reviewer.md" ;;
-    architecture) _ad_file="${_AX_ROOT}/agents/architecture-reviewer.md" ;;
+    security)     _ad_file="${_AX_ROOT}/pipeline/agents/security-reviewer.md" ;;
+    test)         _ad_file="${_AX_ROOT}/pipeline/agents/test-reviewer.md" ;;
+    architecture) _ad_file="${_AX_ROOT}/pipeline/agents/architecture-reviewer.md" ;;
     *)
       echo "[Error] unknown subagent: $_ad_name" >&2
       return 1
