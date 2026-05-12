@@ -86,6 +86,16 @@ AI 응답을 자연어 파싱이 아닌 **구조화된 JSON**으로 받아
 2. 스키마는 JSON Schema Draft 2020-12를 따른다.
 3. 각 스키마에는 `$id`, `description`을 포함한다.
 
+### 응답 무결성 처리
+
+triage 응답이 schema에 맞지 않을 때의 복구 정책 (`scripts/commands/ai-review.sh::_ax_review_triage_once`):
+
+1. 1차: 마크다운 코드 펜스를 strip 후 `jq`로 파싱·검증
+2. 2차: 1차 실패 시 응답 본문에서 첫 `{`부터 마지막 `}`까지 JSON 블록을 추출(`_ax_review_extract_json`) 후 재검증
+3. 최종 실패: skip fallback (리뷰 건너뜀). AI 재호출은 하지 않음 — 토큰 비용 절감을 우선
+
+추출로 복구된 경우 stderr에 `[ax-driven] triage JSON 추출로 복구` 로그가 남는다.
+
 ### risk_level vs severity 구분
 
 ai-review에는 두 가지 다른 레벨 체계가 존재한다. 혼동하지 말 것.
