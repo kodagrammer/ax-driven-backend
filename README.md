@@ -5,6 +5,13 @@
 
 <br/>
 
+> **프로젝트 상태: 실험 종료 / 가설 검증 완료 (2026-05-21)**
+>
+> ax-driven은 “AI workflow를 일반화한 CLI 제품”이 아니라, **AI-assisted development에서 인간이 어디에 개입하고, AI 실행을 어떻게 제한·검증·분기할 것인가**를 코드와 문서로 탐구한 **orchestration experiment**다.
+> 신규 기능 확장은 더 이상 진행하지 않는다. 검증된 흐름(triage → decision JSON → conditional reviewer routing → multi-agent fan-out)과 한계, 그리고 이 레포 밖으로 이관한 future direction은 [PROJECT_STATUS.md](PROJECT_STATUS.md)에 정리되어 있다.
+
+<br/>
+
 ## 🙋🏻‍♀️ 이런 사람을 위한 프로젝트
 
 - 터미널 중심으로 개발하는 백엔드 엔지니어
