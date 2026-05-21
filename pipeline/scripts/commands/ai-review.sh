@@ -19,6 +19,83 @@ _ax_review_diff() {
   esac
 }
 
+# 변경 파일 full content를 인라인하여 stdout으로 출력 (#30 MVP retrieval).
+# cap: 5 files / 30k chars. 초과 분량은 skip + stderr 경고.
+# 사용법: _ax_review_inline_changed_files <mode> <base>
+#   호출 측은 결과를 diff 파일 뒤에 append하여 reviewer 컨텍스트로 사용.
+_ax_review_inline_changed_files() {
+  local _if_mode="$1" _if_base="$2"
+  local _if_max_files=5 _if_max_chars=30000
+  local _if_files _if_file _if_size
+  local _if_count=0 _if_chars=0 _if_capped=false _if_skipped=0
+
+  _if_files=$(_ax_review_diff "$_if_mode" "$_if_base" --name-only --diff-filter=ACMRT 2>/dev/null)
+  [ -z "$_if_files" ] && return 0
+
+  printf '\n## Changed Files (full content for retrieval)\n\n'
+
+  while IFS= read -r _if_file; do
+    [ -z "$_if_file" ] && continue
+    [ ! -f "$_if_file" ] && continue
+
+    if [ "$_if_count" -ge "$_if_max_files" ]; then
+      _if_capped=true
+      _if_skipped=$((_if_skipped + 1))
+      continue
+    fi
+
+    _if_size=$(wc -c < "$_if_file" 2>/dev/null | tr -d ' ')
+    [ -z "$_if_size" ] && _if_size=0
+    if [ $((_if_chars + _if_size)) -gt "$_if_max_chars" ]; then
+      _if_capped=true
+      _if_skipped=$((_if_skipped + 1))
+      continue
+    fi
+
+    printf '### %s\n\n```\n' "$_if_file"
+    cat "$_if_file"
+    printf '\n```\n\n'
+    _if_count=$((_if_count + 1))
+    _if_chars=$((_if_chars + _if_size))
+  done <<EOF
+$_if_files
+EOF
+
+  if [ "$_if_capped" = true ]; then
+    printf '> retrieval capped: included %d files / %d chars; skipped %d files (limit: %d files / %d chars)\n\n' \
+      "$_if_count" "$_if_chars" "$_if_skipped" "$_if_max_files" "$_if_max_chars"
+    echo "[ax-driven] retrieval capped: included $_if_count files / $_if_chars chars; skipped $_if_skipped files (limit: $_if_max_files files / $_if_max_chars chars)" >&2
+  fi
+}
+
+# collector 출력 후처리: critical 라인에 백틱 evidence가 없으면 warning으로 강등 (#30 MVP).
+# 사용법: _ax_review_guard_critical_evidence <review_file>
+_ax_review_guard_critical_evidence() {
+  local _gc_file="$1"
+  [ -f "$_gc_file" ] || return 0
+  local _gc_tmp
+  _gc_tmp=$(mktemp "${_gc_file}.guard.XXXXXX") || return 0
+  awk '
+    BEGIN { dem = 0 }
+    /^[[:space:]]*-[[:space:]]*\[critical\]/ {
+      if ($0 ~ /`[^`]+`/) {
+        print
+      } else {
+        line = $0
+        sub(/\[critical\]/, "[warning]", line)
+        print line
+        dem++
+        printf "[ax-driven] critical-evidence 강등: %s\n", $0 | "cat 1>&2"
+      }
+      next
+    }
+    { print }
+    END {
+      if (dem > 0) printf "[ax-driven] critical-evidence 가드: %d개 강등\n", dem | "cat 1>&2"
+    }
+  ' "$_gc_file" > "$_gc_tmp" && mv "$_gc_tmp" "$_gc_file"
+}
+
 # help 출력
 _ax_review_help() {
   cat <<'HELP'
@@ -239,6 +316,7 @@ _ax_review_dispatch_subagents() {
     rm -f "$_ds_diff_file"
     return 1
   fi
+  _ax_review_inline_changed_files "$_ds_mode" "$_ds_base" >> "$_ds_diff_file"
 
   # subagents JSON 배열 → 줄바꿈 구분 목록
   _ds_names=$(printf '%s\n' "$_ds_subs_json" | jq -r '.[]')
@@ -338,6 +416,8 @@ EOF
     cat "$_rc_tmp/token-collect.log" >&2
     rm -f "$_rc_tmp/token-collect.log"
   fi
+
+  _ax_review_guard_critical_evidence "$_rc_file"
 
   ${EDITOR:-vi} "$_rc_file"
 }
@@ -552,6 +632,7 @@ ai-review() {
 
   echo "[ax-driven] base review 실행 중... (${_eff_mode}, tier: $_tier)"
   _ax_review_diff "$_diff_mode" "$_branch_base" > "$_base_diff_file"
+  _ax_review_inline_changed_files "$_diff_mode" "$_branch_base" >> "$_base_diff_file"
 
   local _base_input
   if grep -q '{{DIFF}}' "$_base_prompt"; then

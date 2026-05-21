@@ -40,13 +40,17 @@ Deduplicate overlapping findings, normalize severity levels, and produce a final
 - List of reviewers that contributed
 
 ## Consolidated Findings
-- [severity] finding description (source: reviewer name)
+- [severity] finding description with `` `file:line` `` or `` `symbol` `` evidence in backticks (source: reviewer name)
 
 ## Final Verdict
 - approve | comment | request_changes
 
 ## Rationale
 - 1-2 sentence justification for the final verdict
+
+# Evidence Rules
+- 각 finding 라인에는 `` `file:line` `` 또는 `` `symbol` `` 형식의 evidence를 백틱으로 반드시 포함한다.
+- evidence가 없는 critical은 출력 단계에서 자체적으로 `warning`으로 강등한다.
 
 # Constraints
 - Respond in Korean

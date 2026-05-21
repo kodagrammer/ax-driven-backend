@@ -36,6 +36,11 @@ Limit:
 - Max 5 items per section
 - Prioritize highest impact issues
 
+## Evidence Rules
+
+- diff 밖 코드는 함께 제공된 `## Changed Files (full content for retrieval)` 섹션으로만 확인한다. 그 외 부재 단정은 금지하며, 미확인 사항은 Should Fix로만 표기한다.
+- Must Fix는 본문에 `` `file:line` `` 또는 `` `symbol` `` 형식의 evidence를 백틱으로 반드시 포함한다. evidence가 없으면 자체적으로 Should Fix로 강등한다.
+
 ## Output Format
 
 Write in Korean. Use the following structure:
