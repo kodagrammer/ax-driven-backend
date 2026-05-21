@@ -1,6 +1,14 @@
 #!/bin/bash
 # tests/run.sh — ax-driven 기본 smoke test
 # 사용법: bash tests/run.sh
+#
+# sh/zsh/dash로 호출돼도 bash(non-POSIX)로 갈아탄다. shebang을 무시하고 명시
+# 호출하는 케이스(`sh tests/run.sh`)에서 인라인 subshell이 부모 셸을 상속해
+# bash 함수가 깨지는 회귀를 막기 위함. macOS `/bin/sh`는 bash지만 POSIX 모드라
+# `BASH_VERSION`만으로는 부족 — `POSIXLY_CORRECT`도 함께 본다.
+if [ -z "${BASH_VERSION:-}" ] || [ -n "${POSIXLY_CORRECT:-}" ]; then
+  exec bash "$0" "$@"
+fi
 
 _PASS=0
 _FAIL=0
